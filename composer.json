@@ -1,0 +1,61 @@
+{
+    "name": "notifyfree/laravel-log-channel",
+    "description": "Laravel log channel for NotifyFree notification service",
+    "keywords": [
+        "laravel",
+        "log",
+        "channel",
+        "notifyfree",
+        "notification",
+        "logging"
+    ],
+    "homepage": "https://github.com/swatchion/notify-laravel-log-channel",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "NotifyFree Team",
+            "email": "dev@notifyfree.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0",
+        "monolog/monolog": "^3.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "phpunit/phpunit": "^10.0",
+        "mockery/mockery": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "NotifyFree\\LaravelLogChannel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "NotifyFree\\LaravelLogChannel\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "NotifyFree\\LaravelLogChannel\\NotifyFreeLogChannelServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
