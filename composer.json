@@ -52,7 +52,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "NotifyFree\\LaravelLogChannel\\NotifyFreeLogChannelServiceProvider"
+                "NotifyFree\\LaravelLogChannel\\NotifyFreeLoggerServiceProvider"
             ]
         }
     },

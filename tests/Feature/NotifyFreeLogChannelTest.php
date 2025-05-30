@@ -4,13 +4,13 @@ namespace NotifyFree\LaravelLogChannel\Tests\Feature;
 
 use Orchestra\Testbench\TestCase;
 use Illuminate\Support\Facades\Log;
-use NotifyFree\LaravelLogChannel\NotifyFreeLogChannelServiceProvider;
+use NotifyFree\LaravelLogChannel\NotifyFreeLoggerServiceProvider;
 
 class NotifyFreeLogChannelTest extends TestCase
 {
     protected function getPackageProviders($app)
     {
-        return [NotifyFreeLogChannelServiceProvider::class];
+        return [NotifyFreeLoggerServiceProvider::class];
     }
 
     protected function defineEnvironment($app)

@@ -10,7 +10,7 @@ use NotifyFree\LaravelLogChannel\Http\NotifyFreeClient;
 use NotifyFree\LaravelLogChannel\Console\Commands\TestNotifyFreeLog;
 use NotifyFree\LaravelLogChannel\Console\Commands\NotifyFreeCacheManager;
 
-class NotifyFreeLogChannelServiceProvider extends ServiceProvider
+class NotifyFreeLoggerServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
