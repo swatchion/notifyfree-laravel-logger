@@ -1,6 +1,6 @@
 {
-    "name": "notifyfree/laravel-log-channel",
-    "description": "Laravel log channel for NotifyFree notification service",
+    "name": "notifyfree/laravel-loggger",
+    "description": "Laravel logger for NotifyFree service",
     "keywords": [
         "laravel",
         "log",
@@ -9,7 +9,7 @@
         "notification",
         "logging"
     ],
-    "homepage": "https://github.com/swatchion/notify-laravel-log-channel",
+    "homepage": "https://github.com/swatchion/notifyfree-laravel-logger",
     "license": "MIT",
     "authors": [
         {
