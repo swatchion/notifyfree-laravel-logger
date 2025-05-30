@@ -12,9 +12,9 @@ return [
     */
     'endpoint' => env('NOTIFYFREE_ENDPOINT', 'https://api.notifyfree.com/v1/logs'),
 
-    'token' => env('NOTIFYFREE_TOKEN'),
+    'token' => env('NOTIFYFREE_TOKEN','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
 
-    'app_id' => env('NOTIFYFREE_APP_ID'),
+    'app_id' => env('NOTIFYFREE_APP_ID','1234567890'),
 
     /*
     |--------------------------------------------------------------------------

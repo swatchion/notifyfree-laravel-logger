@@ -2,7 +2,7 @@
 
 namespace NotifyFree\LaravelLogChannel\Tests\Feature;
 
-use Tests\TestCase;
+use Orchestra\Testbench\TestCase;
 use Illuminate\Support\Facades\Log;
 use NotifyFree\LaravelLogChannel\NotifyFreeLogChannelServiceProvider;
 
@@ -60,13 +60,13 @@ class NotifyFreeLogChannelTest extends TestCase
         ]]);
 
         $logger = Log::channel('notifyfree');
-        
+
         // 测试不同级别的日志
         $logger->debug('Debug message');
         $logger->info('Info message');
         $logger->warning('Warning message');
         $logger->error('Error message');
-        
+
         $this->assertTrue(true);
     }
 }

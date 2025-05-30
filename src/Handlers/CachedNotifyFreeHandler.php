@@ -6,9 +6,32 @@ use Monolog\LogRecord;
 
 class CachedNotifyFreeHandler extends NotifyFreeHandler
 {
-    public function __construct(array $config)
-    {
-        parent::__construct($config);
+    public function __construct(
+        string $endpoint,
+        string $token,
+        string $appId,
+        int $timeout = 30,
+        int $retryAttempts = 3,
+        int $batchSize = 10,
+        bool $includeContext = true,
+        bool $includeExtra = true,
+        int $level = \Monolog\Logger::DEBUG,
+        bool $bubble = true,
+        bool $fallbackEnabled = true
+    ) {
+        parent::__construct(
+            $endpoint,
+            $token,
+            $appId,
+            $timeout,
+            $retryAttempts,
+            $batchSize,
+            $includeContext,
+            $includeExtra,
+            $level,
+            $bubble,
+            $fallbackEnabled
+        );
     }
 
     /**
@@ -43,7 +66,7 @@ class CachedNotifyFreeHandler extends NotifyFreeHandler
     public function getServiceStatus(): array
     {
         $isConnected = $this->testConnection();
-        
+
         return [
             'service_available' => $isConnected,
             'endpoint' => $this->config['endpoint'] ?? 'not configured',
@@ -57,14 +80,14 @@ class CachedNotifyFreeHandler extends NotifyFreeHandler
     public function logServiceStatus(): void
     {
         $status = $this->getServiceStatus();
-        
+
         try {
             $logger = app('log')->channel('single');
             $level = $status['service_available'] ? 'info' : 'warning';
-            $message = $status['service_available'] 
-                ? 'NotifyFree service is available' 
+            $message = $status['service_available']
+                ? 'NotifyFree service is available'
                 : 'NotifyFree service is unavailable';
-                
+
             $logger->$level($message, $status);
         } catch (\Exception $e) {
             error_log('Failed to log NotifyFree service status: ' . $e->getMessage());

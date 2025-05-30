@@ -9,10 +9,33 @@ class BatchNotifyFreeHandler extends NotifyFreeHandler
     protected array $buffer = [];
     protected int $batchSize;
 
-    public function __construct(array $config)
-    {
-        parent::__construct($config);
-        $this->batchSize = $config['batch_size'] ?? 10;
+    public function __construct(
+        string $endpoint,
+        string $token,
+        string $appId,
+        int $timeout = 30,
+        int $retryAttempts = 3,
+        int $batchSize = 10,
+        bool $includeContext = true,
+        bool $includeExtra = true,
+        int $level = \Monolog\Logger::DEBUG,
+        bool $bubble = true,
+        bool $fallbackEnabled = true
+    ) {
+        parent::__construct(
+            $endpoint,
+            $token,
+            $appId,
+            $timeout,
+            $retryAttempts,
+            $batchSize,
+            $includeContext,
+            $includeExtra,
+            $level,
+            $bubble,
+            $fallbackEnabled
+        );
+        $this->batchSize = $batchSize;
     }
 
     protected function write(LogRecord $record): void
