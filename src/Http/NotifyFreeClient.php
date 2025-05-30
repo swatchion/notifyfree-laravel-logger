@@ -177,8 +177,9 @@ class NotifyFreeClient
     public function testConnection(): bool
     {
         try {
-            $response = $this->getHttpClient()->get($this->endpoint . '/health');
-            return $response->getStatusCode() === 200;
+            // 使用 HEAD 请求测试连接，避免实际发送数据
+            $response = $this->getHttpClient()->head($this->endpoint);
+            return in_array($response->getStatusCode(), [200, 405]); // 405 表示方法不允许但端点存在
         } catch (\Exception $e) {
             return false;
         }

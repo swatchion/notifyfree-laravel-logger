@@ -23,19 +23,9 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
             'notifyfree'
         );
 
-        // 注册NotifyFree客户端 - 延迟实例化
+        // 注册NotifyFree客户端
         $this->app->singleton(NotifyFreeClient::class, function ($app) {
             $config = $app['config']['notifyfree'] ?? [];
-
-            // 如果配置不完整，返回一个空的mock客户端
-            if (!$this->validateConfig($config)) {
-                return new class {
-                    public function __call($method, $args) {
-                        return null;
-                    }
-                };
-            }
-
             return new NotifyFreeClient($config);
         });
     }
@@ -58,38 +48,40 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
             ]);
         }
 
-        // 注册日志驱动 - 必须在boot中立即注册
-        $this->registerLogDriver();
-    }
-
-    /**
-     * 注册自定义日志驱动
-     */
-    protected function registerLogDriver(): void
-    {
-        // 延迟注册，避免在 boot 阶段立即访问 log 管理器
-        $this->app->afterResolving('log', function ($logManager) {
-            $logManager->extend('notifyfree', function ($app, array $config) {
-                return $this->createNotifyFreeDriver($config);
+        // 注册日志驱动 - 使用最简单可靠的方式
+        $self = $this;
+        $this->app->booted(function () use ($self) {
+            $logManager = $this->app->make('log');
+            $logManager->extend('notifyfree', function ($app, array $config) use ($self) {
+                return $self->createNotifyFreeDriver($app, $config);
             });
         });
     }
 
     /**
-     * Create an instance of the NotifyFree log driver.
-     * This method follows the same pattern as Laravel's createSlackDriver method.
-     *
-     * @param  array  $config
-     * @return \Psr\Log\LoggerInterface
+     * Create NotifyFree log driver
      */
-    protected function createNotifyFreeDriver(array $config)
+    public function createNotifyFreeDriver($app, array $config)
     {
-        // 合并配置
-        $notifyFreeConfig = $this->app['config']['notifyfree'] ?? [];
-        $mergedConfig = array_merge($this->getDefaultConfig(), $notifyFreeConfig, $config);
+        // 获取配置
+        $notifyFreeConfig = $app['config']['notifyfree'] ?? [];
+        $mergedConfig = array_merge([
+            'level' => 'debug',
+            'timeout' => 30,
+            'retry_attempts' => 3,
+            'batch_size' => 10,
+            'format' => [
+                'include_context' => true,
+                'include_extra' => true,
+            ],
+            'fallback' => [
+                'enabled' => true,
+            ],
+        ], $notifyFreeConfig, $config);
 
-        return new \Monolog\Logger($this->parseChannel($mergedConfig), [
-            $this->prepareHandler(new NotifyFreeHandler(
+        // 创建 Monolog Logger
+        return new Logger('notifyfree', [
+            new NotifyFreeHandler(
                 $mergedConfig['endpoint'] ?? '',
                 $mergedConfig['token'] ?? '',
                 $mergedConfig['app_id'] ?? '',
@@ -98,150 +90,29 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
                 $mergedConfig['batch_size'] ?? 10,
                 $mergedConfig['format']['include_context'] ?? true,
                 $mergedConfig['format']['include_extra'] ?? true,
-                $this->level($mergedConfig),
+                $this->parseLevel($mergedConfig['level'] ?? 'debug'),
                 $mergedConfig['bubble'] ?? true,
                 $mergedConfig['fallback']['enabled'] ?? true
-            ), $mergedConfig),
-        ], $mergedConfig['replace_placeholders'] ?? false ? [new \Monolog\Processor\PsrLogMessageProcessor()] : []);
+            ),
+        ]);
     }
 
     /**
      * Parse the string level into a Monolog constant.
-     *
-     * @param  array  $config
-     * @return int
      */
-    protected function level(array $config): int
+    protected function parseLevel($level): int
     {
-        $level = $config['level'] ?? 'debug';
-
         $levels = [
-            'debug'     => \Monolog\Logger::DEBUG,
-            'info'      => \Monolog\Logger::INFO,
-            'notice'    => \Monolog\Logger::NOTICE,
-            'warning'   => \Monolog\Logger::WARNING,
-            'error'     => \Monolog\Logger::ERROR,
-            'critical'  => \Monolog\Logger::CRITICAL,
-            'alert'     => \Monolog\Logger::ALERT,
-            'emergency' => \Monolog\Logger::EMERGENCY,
+            'debug'     => Logger::DEBUG,
+            'info'      => Logger::INFO,
+            'notice'    => Logger::NOTICE,
+            'warning'   => Logger::WARNING,
+            'error'     => Logger::ERROR,
+            'critical'  => Logger::CRITICAL,
+            'alert'     => Logger::ALERT,
+            'emergency' => Logger::EMERGENCY,
         ];
 
-        if (isset($levels[$level])) {
-            return $levels[$level];
-        }
-
-        throw new \InvalidArgumentException('Invalid log level.');
-    }
-
-    /**
-     * Parse the channel name from the configuration.
-     *
-     * @param  array  $config
-     * @return string
-     */
-    protected function parseChannel(array $config): string
-    {
-        return $config['name'] ?? 'notifyfree';
-    }
-
-    /**
-     * Prepare the handler for usage by Monolog.
-     *
-     * @param  \NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler  $handler
-     * @param  array  $config
-     * @return \NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler
-     */
-    protected function prepareHandler(NotifyFreeHandler $handler, array $config = []): NotifyFreeHandler
-    {
-        if (isset($config['formatter'])) {
-            $handler->setFormatter($this->app->make($config['formatter'], $config['formatter_with'] ?? []));
-        }
-
-        return $handler;
-    }
-
-    /**
-     * 创建NotifyFree日志记录器 (保留用于向后兼容)
-     */
-    protected function createNotifyFreeLogger(array $config): Logger
-    {
-        // 合并配置
-        $notifyFreeConfig = $this->app['config']['notifyfree'] ?? [];
-        $mergedConfig = array_merge($this->getDefaultConfig(), $notifyFreeConfig, $config);
-
-        // 验证配置
-        if (!$this->validateConfig($mergedConfig)) {
-            return new Logger('notifyfree-fallback', [new \Monolog\Handler\NullHandler()]);
-        }
-
-        // 使用新的 createDriver 方法
-        return \NotifyFree\LaravelLogChannel\NotifyFreeLogger::createDriver($mergedConfig);
-    }
-
-    /**
-     * 创建处理器
-     */
-    protected function createHandler(array $config): NotifyFreeHandler
-    {
-        $handlerClass = $config['handler'] ?? NotifyFreeHandler::class;
-
-        if (!class_exists($handlerClass)) {
-            throw new \InvalidArgumentException("Handler class {$handlerClass} does not exist");
-        }
-
-        if (!is_subclass_of($handlerClass, NotifyFreeHandler::class)) {
-            throw new \InvalidArgumentException("Handler must extend " . NotifyFreeHandler::class);
-        }
-
-        return new $handlerClass($config);
-    }
-
-    /**
-     * 获取默认配置
-     */
-    protected function getDefaultConfig(): array
-    {
-        return [
-            'level' => Logger::DEBUG,
-            'timeout' => 30,
-            'retry_attempts' => 3,
-            'batch_size' => 10,
-            'format' => [
-                'include_context' => true,
-                'include_extra' => true,
-                'timestamp_format' => 'Y-m-d H:i:s',
-                'max_message_length' => 1000,
-            ],
-        ];
-    }
-
-    /**
-     * 验证配置的有效性
-     */
-    protected function validateConfig(array $config): bool
-    {
-        $required = ['endpoint', 'token', 'app_id'];
-
-        foreach ($required as $key) {
-            if (empty($config[$key])) {
-                return false;
-            }
-        }
-
-        // 验证URL格式
-        if (!empty($config['endpoint']) && !$this->isValidUrl($config['endpoint'])) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * 验证URL是否有效
-     */
-    protected function isValidUrl(string $url): bool
-    {
-        return filter_var($url, FILTER_VALIDATE_URL) !== false ||
-               preg_match('/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)/', $url);
+        return $levels[$level] ?? Logger::DEBUG;
     }
 }
