@@ -41,7 +41,7 @@ return [
     | - CachedNotifyFreeHandler: Enhanced with service status monitoring
     |
     */
-    'handler' => env('NOTIFYFREE_HANDLER', \NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler::class),
+    'handler' => env('NOTIFYFREE_HANDLER', \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler::class),
 
     /*
     |--------------------------------------------------------------------------

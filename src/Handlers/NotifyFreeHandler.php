@@ -1,13 +1,13 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Handlers;
+namespace NotifyFree\LaravelLogger\Handlers;
 
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Logger;
 use Monolog\LogRecord;
 use Monolog\Formatter\FormatterInterface;
-use NotifyFree\LaravelLogChannel\Http\NotifyFreeClient;
-use NotifyFree\LaravelLogChannel\Formatters\NotifyFreeFormatter;
+use NotifyFree\LaravelLogger\Http\NotifyFreeClient;
+use NotifyFree\LaravelLogger\Formatters\NotifyFreeFormatter;
 
 class NotifyFreeHandler extends AbstractProcessingHandler
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Formatters;
+namespace NotifyFree\LaravelLogger\Formatters;
 
 use Monolog\Formatter\FormatterInterface;
 use Monolog\LogRecord;

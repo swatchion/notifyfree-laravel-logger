@@ -1,9 +1,9 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Tests\Unit;
+namespace NotifyFree\LaravelLogger\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use NotifyFree\LaravelLogChannel\Formatters\NotifyFreeFormatter;
+use NotifyFree\LaravelLogger\Formatters\NotifyFreeFormatter;
 use Monolog\LogRecord;
 use Monolog\Level;
 

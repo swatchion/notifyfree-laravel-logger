@@ -1,11 +1,11 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Tests\Unit;
+namespace NotifyFree\LaravelLogger\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Monolog\Logger as Monolog;
-use NotifyFree\LaravelLogChannel\NotifyFreeLogger;
-use NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler;
+use NotifyFree\LaravelLogger\NotifyFreeLogger;
+use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
 
 class NotifyFreeLoggerTest extends TestCase
 {

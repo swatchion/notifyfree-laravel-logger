@@ -195,7 +195,7 @@ php artisan notifyfree:test-log
 ```bash
 php artisan tinker --execute="
 \$config = config('notifyfree');
-\$client = new \\NotifyFree\\LaravelLogChannel\\Http\\NotifyFreeClient(\$config);
+\$client = new \\NotifyFree\\LaravelLogger\\Http\\NotifyFreeClient(\$config);
 echo \$client->testConnection() ? 'SUCCESS' : 'FAILED';
 "
 ```
@@ -218,7 +218,7 @@ tail storage/logs/laravel.log
 ```bash
 php artisan tinker --execute="
 \$config = config('notifyfree');
-\$client = new \\NotifyFree\\LaravelLogChannel\\Http\\NotifyFreeClient(\$config);
+\$client = new \\NotifyFree\\LaravelLogger\\Http\\NotifyFreeClient(\$config);
 \$result = \$client->send(['message' => 'Direct test', 'level' => 'info']);
 echo \$result ? 'Remote send: SUCCESS' : 'Remote send: FAILED';
 "

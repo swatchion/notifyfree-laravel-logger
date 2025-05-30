@@ -1,6 +1,6 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Handlers;
+namespace NotifyFree\LaravelLogger\Handlers;
 
 use Monolog\LogRecord;
 

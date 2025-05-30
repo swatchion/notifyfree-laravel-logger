@@ -1,6 +1,6 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Console\Commands;
+namespace NotifyFree\LaravelLogger\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;

@@ -1,9 +1,9 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Console\Commands;
+namespace NotifyFree\LaravelLogger\Console\Commands;
 
 use Illuminate\Console\Command;
-use NotifyFree\LaravelLogChannel\Handlers\CachedNotifyFreeHandler;
+use NotifyFree\LaravelLogger\Handlers\CachedNotifyFreeHandler;
 
 class NotifyFreeCacheManager extends Command
 {

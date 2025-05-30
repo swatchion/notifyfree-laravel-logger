@@ -1,11 +1,11 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Http;
+namespace NotifyFree\LaravelLogger\Http;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
-use NotifyFree\LaravelLogChannel\Exceptions\NotifyFreeNetworkException;
-use NotifyFree\LaravelLogChannel\Exceptions\NotifyFreeAuthException;
+use NotifyFree\LaravelLogger\Exceptions\NotifyFreeNetworkException;
+use NotifyFree\LaravelLogger\Exceptions\NotifyFreeAuthException;
 
 class NotifyFreeClient
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Exceptions;
+namespace NotifyFree\LaravelLogger\Exceptions;
 
 class NotifyFreeNetworkException extends NotifyFreeException
 {
