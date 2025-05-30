@@ -38,7 +38,7 @@ return [
     | Choose the appropriate handler for your needs:
     | - NotifyFreeHandler: Basic synchronous sending
     | - BatchNotifyFreeHandler: Batched sending for better performance
-    | - CachedNotifyFreeHandler: With local fallback support
+    | - CachedNotifyFreeHandler: Enhanced with service status monitoring
     |
     */
     'handler' => env('NOTIFYFREE_HANDLER', \NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler::class),
@@ -64,21 +64,4 @@ return [
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Fallback Configuration
-    |--------------------------------------------------------------------------
-    |
-    | When NotifyFree service is unavailable, logs can be stored locally
-    | and optionally retried later.
-    |
-    */
-    'fallback' => [
-        'enabled' => env('NOTIFYFREE_FALLBACK_ENABLED', true),
-        'local_storage_path' => env(
-            'NOTIFYFREE_FALLBACK_PATH',
-            storage_path('logs/notifyfree-fallback.log')
-        ),
-        'max_file_size' => env('NOTIFYFREE_FALLBACK_MAX_SIZE', 10 * 1024 * 1024), // 10MB
-    ],
 ];

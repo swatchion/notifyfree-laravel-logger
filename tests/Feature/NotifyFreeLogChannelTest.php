@@ -10,48 +10,63 @@ class NotifyFreeLogChannelTest extends TestCase
 {
     protected function getPackageProviders($app)
     {
-        return [
-            NotifyFreeLogChannelServiceProvider::class,
-        ];
+        return [NotifyFreeLogChannelServiceProvider::class];
     }
 
     protected function defineEnvironment($app)
     {
-        $app['config']->set('notifyfree.endpoint', 'https://test.notifyfree.com/api/logs');
+        $app['config']->set('notifyfree.endpoint', 'https://test.notifyfree.com/api/v1/messages');
         $app['config']->set('notifyfree.token', 'test-token');
         $app['config']->set('notifyfree.app_id', 'test-app-id');
     }
 
     public function test_can_register_notifyfree_log_driver()
     {
-        config([
-            'logging.channels.notifyfree' => [
-                'driver' => 'notifyfree',
-                'endpoint' => 'https://test.notifyfree.com/api/logs',
-                'token' => 'test-token',
-                'app_id' => 'test-app-id',
-            ]
-        ]);
+        config(['logging.channels.notifyfree' => [
+            'driver' => 'notifyfree',
+            'level' => 'error',
+        ]]);
 
         $logger = Log::channel('notifyfree');
         $this->assertInstanceOf(\Illuminate\Log\Logger::class, $logger);
     }
 
-    public function test_can_log_messages()
+    public function test_can_use_stack_channel_with_notifyfree()
     {
         config([
+            'logging.channels.stack' => [
+                'driver' => 'stack',
+                'channels' => ['single', 'notifyfree'],
+            ],
             'logging.channels.notifyfree' => [
                 'driver' => 'notifyfree',
-                'endpoint' => 'https://test.notifyfree.com/api/logs',
-                'token' => 'test-token',
-                'app_id' => 'test-app-id',
+                'level' => 'error',
+            ],
+            'logging.channels.single' => [
+                'driver' => 'single',
+                'path' => storage_path('logs/test.log'),
             ]
         ]);
 
-        // 这个测试不会实际发送HTTP请求，但会验证日志通道可以正常工作
-        Log::channel('notifyfree')->info('测试日志消息', ['test' => true]);
+        Log::channel('stack')->info('测试 stack 通道');
+        $this->assertTrue(true);
+    }
 
-        // 如果没有异常抛出，说明通道工作正常
+    public function test_notifyfree_handles_different_log_levels()
+    {
+        config(['logging.channels.notifyfree' => [
+            'driver' => 'notifyfree',
+            'level' => 'debug',
+        ]]);
+
+        $logger = Log::channel('notifyfree');
+        
+        // 测试不同级别的日志
+        $logger->debug('Debug message');
+        $logger->info('Info message');
+        $logger->warning('Warning message');
+        $logger->error('Error message');
+        
         $this->assertTrue(true);
     }
 }

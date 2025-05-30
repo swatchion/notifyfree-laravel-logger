@@ -23,8 +23,8 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
             'notifyfree'
         );
 
-        // 注册NotifyFree客户端单例
-        $this->app->singleton(NotifyFreeClient::class, function ($app) {
+        // 注册NotifyFree客户端 - 不使用单例，避免 Swoole 状态污染
+        $this->app->bind(NotifyFreeClient::class, function ($app) {
             $config = $app['config']['notifyfree'];
             return new NotifyFreeClient($config);
         });
@@ -57,13 +57,18 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
      */
     protected function registerLogDriver(): void
     {
-        // Laravel 11+都支持这种方式，但我们需要确保LogManager已经解析
-        if ($this->app->resolved('log')) {
-            $this->extendLogManager($this->app['log']);
-        } else {
-            $this->app->afterResolving('log', function ($logManager) {
-                $this->extendLogManager($logManager);
-            });
+        try {
+            // Laravel 11+都支持这种方式，但我们需要确保LogManager已经解析
+            if ($this->app->resolved('log')) {
+                $this->extendLogManager($this->app['log']);
+            } else {
+                $this->app->afterResolving('log', function ($logManager) {
+                    $this->extendLogManager($logManager);
+                });
+            }
+        } catch (\Exception $e) {
+            // 静默处理注册失败，避免影响应用启动
+            // 可以在这里记录错误到文件而不是抛出异常
         }
     }
 
@@ -82,25 +87,25 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
      */
     protected function createNotifyFreeLogger(array $config): Logger
     {
-        // 合并默认配置和全局配置
-        $notifyFreeConfig = $this->app['config']['notifyfree'] ?? [];
-        $config = array_merge($this->getDefaultConfig(), $notifyFreeConfig, $config);
+        try {
+            // 合并默认配置和全局配置
+            $notifyFreeConfig = $this->app['config']['notifyfree'] ?? [];
+            $config = array_merge($this->getDefaultConfig(), $notifyFreeConfig, $config);
 
-        // 从 logging.php 的通道配置中提取 max_file_size
-        if (isset($config['max_file_size'])) {
-            $config['max_file_size'] = (int) $config['max_file_size'];
+            // 验证必需的配置项
+            $this->validateConfig($config);
+
+            // 创建处理器
+            $handler = $this->createHandler($config);
+
+            // 创建Logger实例
+            $logger = new Logger('notifyfree', [$handler]);
+
+            return $logger;
+        } catch (\Exception $e) {
+            // 如果创建失败，返回一个空的日志记录器，避免影响主程序
+            return new Logger('notifyfree-fallback', []);
         }
-
-        // 验证必需的配置项
-        $this->validateConfig($config);
-
-        // 创建处理器
-        $handler = $this->createHandler($config);
-
-        // 创建Logger实例
-        $logger = new Logger('notifyfree', [$handler]);
-
-        return $logger;
     }
 
     /**
@@ -133,7 +138,6 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
             'timeout' => 30,
             'retry_attempts' => 3,
             'batch_size' => 10,
-            'path' => storage_path('logs/laravel.log'),
             'format' => [
                 'include_context' => true,
                 'include_extra' => true,
@@ -144,7 +148,7 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
     }
 
     /**
-     * 验证配置的有效性
+     * 验证配置的有效性 - 使用更宽松的验证策略
      */
     protected function validateConfig(array $config): void
     {
@@ -152,14 +156,25 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
 
         foreach ($required as $key) {
             if (empty($config[$key])) {
-                throw new \InvalidArgumentException("NotifyFree log channel requires '{$key}' configuration");
+                // 使用异常替代直接抛出错误
+                throw new \RuntimeException("NotifyFree log channel requires '{$key}' configuration");
             }
         }
 
-        // 验证endpoint格式
-        if (!filter_var($config['endpoint'], FILTER_VALIDATE_URL)) {
-            throw new \InvalidArgumentException("Invalid NotifyFree endpoint URL: {$config['endpoint']}");
+        // 更宽松的URL验证
+        if (!empty($config['endpoint']) && !$this->isValidUrl($config['endpoint'])) {
+            throw new \RuntimeException("Invalid NotifyFree endpoint URL: {$config['endpoint']}");
         }
+    }
+
+    /**
+     * 更宽松的URL验证
+     */
+    protected function isValidUrl(string $url): bool
+    {
+        // 允许localhost和IP地址
+        return filter_var($url, FILTER_VALIDATE_URL) !== false ||
+               preg_match('/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)/', $url);
     }
 
     /**

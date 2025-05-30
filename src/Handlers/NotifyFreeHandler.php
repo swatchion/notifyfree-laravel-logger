@@ -8,11 +8,10 @@ use Monolog\LogRecord;
 use Monolog\Formatter\FormatterInterface;
 use NotifyFree\LaravelLogChannel\Http\NotifyFreeClient;
 use NotifyFree\LaravelLogChannel\Formatters\NotifyFreeFormatter;
-use NotifyFree\LaravelLogChannel\Exceptions\NotifyFreeException;
 
 class NotifyFreeHandler extends AbstractProcessingHandler
 {
-    protected NotifyFreeClient $client;
+    protected ?NotifyFreeClient $client = null;
     protected ?FormatterInterface $formatter = null;
     protected array $config;
 
@@ -20,71 +19,73 @@ class NotifyFreeHandler extends AbstractProcessingHandler
     {
         parent::__construct($config['level'] ?? Logger::DEBUG);
         $this->config = $config;
-        $this->client = new NotifyFreeClient($config);
         $this->formatter = new NotifyFreeFormatter($config);
     }
 
-    /**
-     * 处理日志记录
-     */
+    protected function getClient(): NotifyFreeClient
+    {
+        if ($this->client === null) {
+            $this->client = new NotifyFreeClient($this->config);
+        }
+        return $this->client;
+    }
+
     protected function write(LogRecord $record): void
     {
         try {
             $formatted = $this->formatter->format($record);
-            $this->client->send($formatted);
-        } catch (NotifyFreeException $e) {
-            // 记录发送失败，避免影响主程序
-            $this->handleSendFailure($e, $record);
+            $this->getClient()->send($formatted);
+        } catch (\Exception $e) {
+            // 通过 Laravel 日志系统记录发送失败，避免循环引用
+            $this->logSendFailure($e, $record);
         }
     }
 
-    /**
-     * 处理发送失败的情况
-     */
-    protected function handleSendFailure(NotifyFreeException $e, LogRecord $record): void
+    protected function logSendFailure(\Exception $e, LogRecord $record): void
     {
-        // 使用error_log避免循环日志
-        error_log(sprintf(
-            'NotifyFree log sending failed: %s. Original message: %s',
-            $e->getMessage(),
-            $record->message
-        ));
-
-        // 本地备份始终启用
-        $this->saveToLocalFallback($record);
+        // 在容器环境下，优先使用 Laravel 日志系统，失败时使用 @error_log 压制错误
+        try {
+            // 检查是否在 Swoole 环境中
+            $isSwoole = extension_loaded('swoole') && class_exists('\Swoole\Coroutine') && \Swoole\Coroutine::getCid() > 0;
+            
+            if ($isSwoole) {
+                // 在协程环境中，直接使用 @error_log，压制任何错误
+                @error_log(sprintf(
+                    'NotifyFree log sending failed in Swoole context: %s (Original: %s)',
+                    $e->getMessage(),
+                    $record->message
+                ));
+            } else {
+                // 非 Swoole 环境，正常使用 Laravel 日志
+                $logger = app('log')->channel('single');
+                $logger->warning('NotifyFree log sending failed', [
+                    'error' => $e->getMessage(),
+                    'original_message' => $record->message,
+                    'original_level' => $record->level->getName(),
+                    'original_channel' => $record->channel,
+                    'timestamp' => $record->datetime->toISOString(),
+                ]);
+            }
+        } catch (\Exception $logError) {
+            // 容器环境下的最后容错措施：使用 @ 压制 error_log 的任何错误
+            @error_log(sprintf(
+                'NotifyFree: Failed to log error. Original error: %s, Log error: %s',
+                $e->getMessage(),
+                $logError->getMessage()
+            ));
+        }
     }
 
-    /**
-     * 本地备份保存
-     */
-    protected function saveToLocalFallback(LogRecord $record): void
-    {
-        $fallbackPath = $this->config['path']
-            ?? storage_path('logs/laravel.log');
-
-        $logData = $this->formatter->format($record);
-        $logLine = json_encode($logData) . PHP_EOL;
-
-        file_put_contents($fallbackPath, $logLine, FILE_APPEND | LOCK_EX);
-    }
-
-    /**
-     * 获取格式化器
-     */
     public function getFormatter(): NotifyFreeFormatter
     {
         return $this->formatter;
     }
 
-    /**
-     * 设置格式化器
-     */
     public function setFormatter($formatter): self
     {
         if ($formatter instanceof NotifyFreeFormatter) {
             $this->formatter = $formatter;
         }
-
         return $this;
     }
 }
