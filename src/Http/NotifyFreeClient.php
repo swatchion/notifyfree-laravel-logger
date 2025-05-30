@@ -18,11 +18,16 @@ class NotifyFreeClient
 
     public function __construct(array $config)
     {
-        $this->endpoint = $config['endpoint'];
-        $this->token = $config['token'];
-        $this->applicationId = $config['app_id'];
+        $this->endpoint = $config['endpoint'] ?? '';
+        $this->token = $config['token'] ?? '';
+        $this->applicationId = $config['app_id'] ?? '';
         $this->timeout = $config['timeout'] ?? 30;
         $this->retryAttempts = $config['retry_attempts'] ?? 3;
+
+        // 如果关键配置缺失，记录警告但不抛出异常
+        if (empty($this->endpoint) || empty($this->token) || empty($this->applicationId)) {
+            error_log('NotifyFreeClient: Missing required configuration. Client will be non-functional.');
+        }
     }
 
     /**
@@ -40,7 +45,7 @@ class NotifyFreeClient
                     'User-Agent' => 'NotifyFree-Laravel-Log-Channel/1.0',
                 ],
             ];
-            
+
             // 检查是否在 Swoole 环境中
             if (extension_loaded('swoole')) {
                 // Swoole 环境下的特殊配置
@@ -50,7 +55,7 @@ class NotifyFreeClient
                     CURLOPT_CONNECTTIMEOUT => 10,
                 ];
             }
-            
+
             $this->httpClient = new Client($options);
         }
         return $this->httpClient;
@@ -161,7 +166,7 @@ class NotifyFreeClient
                 continue;
             }
         }
-        
+
         // 如果超过一半成功，认为批量发送成功
         return $successCount > (count($logDataBatch) / 2);
     }

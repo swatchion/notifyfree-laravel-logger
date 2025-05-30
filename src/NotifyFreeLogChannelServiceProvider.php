@@ -17,6 +17,11 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // 如果是在IDE Helper环境下运行，跳过注册以避免segfault
+        if ($this->isIdeHelperRunning()) {
+            return;
+        }
+
         // 合并配置文件
         $this->mergeConfigFrom(
             __DIR__.'/../config/notifyfree.php',
@@ -26,6 +31,24 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
         // 注册NotifyFree客户端 - 不使用单例，避免 Swoole 状态污染
         $this->app->bind(NotifyFreeClient::class, function ($app) {
             $config = $app['config']['notifyfree'];
+
+            // 检查必需的配置项，如果缺失则返回null或抛出更友好的异常
+            $required = ['endpoint', 'token', 'app_id'];
+            foreach ($required as $key) {
+                if (empty($config[$key])) {
+                    // 在开发环境下记录警告，但不阻止应用启动
+                    if ($app->environment('local', 'development')) {
+                        error_log("NotifyFree log channel: Missing required configuration '{$key}'. Please set NOTIFYFREE_" . strtoupper($key) . " in your .env file.");
+                    }
+                    // 返回一个空的客户端实例而不是抛出异常
+                    return new class {
+                        public function __call($method, $args) {
+                            return null;
+                        }
+                    };
+                }
+            }
+
             return new NotifyFreeClient($config);
         });
     }
@@ -35,6 +58,11 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // 如果是在IDE Helper环境下运行，跳过启动以避免segfault
+        if ($this->isIdeHelperRunning()) {
+            return;
+        }
+
         // 发布配置文件
         $this->publishes([
             __DIR__.'/../config/notifyfree.php' => config_path('notifyfree.php'),
@@ -58,6 +86,26 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
     protected function registerLogDriver(): void
     {
         try {
+            // 检查基本配置是否存在
+            $config = $this->app['config']['notifyfree'] ?? [];
+            $required = ['endpoint', 'token', 'app_id'];
+            $missingConfig = false;
+
+            foreach ($required as $key) {
+                if (empty($config[$key])) {
+                    $missingConfig = true;
+                    break;
+                }
+            }
+
+            // 如果配置缺失，跳过日志驱动注册
+            if ($missingConfig) {
+                if ($this->app->environment('local', 'development')) {
+                    error_log("NotifyFree log channel: Skipping log driver registration due to missing configuration.");
+                }
+                return;
+            }
+
             // Laravel 11+都支持这种方式，但我们需要确保LogManager已经解析
             if ($this->app->resolved('log')) {
                 $this->extendLogManager($this->app['log']);
@@ -69,6 +117,9 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
         } catch (\Exception $e) {
             // 静默处理注册失败，避免影响应用启动
             // 可以在这里记录错误到文件而不是抛出异常
+            if ($this->app->environment('local', 'development')) {
+                error_log("NotifyFree log channel registration failed: " . $e->getMessage());
+            }
         }
     }
 
@@ -93,7 +144,10 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
             $config = array_merge($this->getDefaultConfig(), $notifyFreeConfig, $config);
 
             // 验证必需的配置项
-            $this->validateConfig($config);
+            if (!$this->validateConfig($config)) {
+                // 如果验证失败，返回一个空的日志记录器，避免影响主程序
+                return new Logger('notifyfree-fallback', []);
+            }
 
             // 创建处理器
             $handler = $this->createHandler($config);
@@ -150,21 +204,29 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
     /**
      * 验证配置的有效性 - 使用更宽松的验证策略
      */
-    protected function validateConfig(array $config): void
+    protected function validateConfig(array $config): bool
     {
         $required = ['endpoint', 'token', 'app_id'];
 
         foreach ($required as $key) {
             if (empty($config[$key])) {
-                // 使用异常替代直接抛出错误
-                throw new \RuntimeException("NotifyFree log channel requires '{$key}' configuration");
+                // 记录警告而不是抛出异常
+                if ($this->app->environment('local', 'development')) {
+                    error_log("NotifyFree log channel: Missing required configuration '{$key}'");
+                }
+                return false;
             }
         }
 
         // 更宽松的URL验证
         if (!empty($config['endpoint']) && !$this->isValidUrl($config['endpoint'])) {
-            throw new \RuntimeException("Invalid NotifyFree endpoint URL: {$config['endpoint']}");
+            if ($this->app->environment('local', 'development')) {
+                error_log("NotifyFree log channel: Invalid endpoint URL: {$config['endpoint']}");
+            }
+            return false;
         }
+
+        return true;
     }
 
     /**
@@ -185,5 +247,34 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
         return [
             NotifyFreeClient::class,
         ];
+    }
+
+    /**
+     * 检测是否在IDE Helper环境下运行
+     */
+    protected function isIdeHelperRunning(): bool
+    {
+        // 检查命令行参数
+        if (isset($_SERVER['argv'])) {
+            $args = implode(' ', $_SERVER['argv']);
+            if (strpos($args, 'ide-helper') !== false) {
+                return true;
+            }
+        }
+
+        // 检查环境变量
+        if (getenv('IDE_HELPER_RUNNING') === 'true') {
+            return true;
+        }
+
+        // 检查调用栈
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        foreach ($trace as $frame) {
+            if (isset($frame['class']) && strpos($frame['class'], 'IdeHelper') !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
