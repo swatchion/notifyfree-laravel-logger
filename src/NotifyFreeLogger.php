@@ -3,6 +3,7 @@
 namespace NotifyFree\LaravelLogChannel;
 
 use Monolog\Logger as Monolog;
+use Monolog\Level;
 use Monolog\Processor\PsrLogMessageProcessor;
 use NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler;
 
@@ -87,13 +88,13 @@ class NotifyFreeLogger
      * @var array
      */
     protected static $levels = [
-        'debug'     => Monolog::DEBUG,
-        'info'      => Monolog::INFO,
-        'notice'    => Monolog::NOTICE,
-        'warning'   => Monolog::WARNING,
-        'error'     => Monolog::ERROR,
-        'critical'  => Monolog::CRITICAL,
-        'alert'     => Monolog::ALERT,
-        'emergency' => Monolog::EMERGENCY,
+        'debug'     => Level::Debug->value,
+        'info'      => Level::Info->value,
+        'notice'    => Level::Notice->value,
+        'warning'   => Level::Warning->value,
+        'error'     => Level::Error->value,
+        'critical'  => Level::Critical->value,
+        'alert'     => Level::Alert->value,
+        'emergency' => Level::Emergency->value,
     ];
 }
