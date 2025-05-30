@@ -5,6 +5,7 @@ namespace NotifyFree\LaravelLogChannel;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Log\LogManager;
 use Monolog\Logger;
+use Monolog\Level;
 use NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler;
 use NotifyFree\LaravelLogChannel\Http\NotifyFreeClient;
 use NotifyFree\LaravelLogChannel\Console\Commands\TestNotifyFreeLog;
@@ -98,21 +99,21 @@ class NotifyFreeLoggerServiceProvider extends ServiceProvider
     }
 
     /**
-     * Parse the string level into a Monolog constant.
+     * Parse the string level into a Monolog Level.
      */
     protected function parseLevel($level): int
     {
         $levels = [
-            'debug'     => Logger::DEBUG,
-            'info'      => Logger::INFO,
-            'notice'    => Logger::NOTICE,
-            'warning'   => Logger::WARNING,
-            'error'     => Logger::ERROR,
-            'critical'  => Logger::CRITICAL,
-            'alert'     => Logger::ALERT,
-            'emergency' => Logger::EMERGENCY,
+            'debug'     => Level::Debug->value,
+            'info'      => Level::Info->value,
+            'notice'    => Level::Notice->value,
+            'warning'   => Level::Warning->value,
+            'error'     => Level::Error->value,
+            'critical'  => Level::Critical->value,
+            'alert'     => Level::Alert->value,
+            'emergency' => Level::Emergency->value,
         ];
 
-        return $levels[$level] ?? Logger::DEBUG;
+        return $levels[$level] ?? Level::Debug->value;
     }
 }
