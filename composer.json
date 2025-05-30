@@ -31,12 +31,12 @@
     },
     "autoload": {
         "psr-4": {
-            "NotifyFree\\LaravelLogChannel\\": "src/"
+            "NotifyFree\\LaravelLogger\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "NotifyFree\\LaravelLogChannel\\Tests\\": "tests/"
+            "NotifyFree\\LaravelLogger\\Tests\\": "tests/"
         }
     },
     "scripts": {
@@ -52,7 +52,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "NotifyFree\\LaravelLogChannel\\NotifyFreeLoggerServiceProvider"
+                "NotifyFree\\LaravelLogger\\NotifyFreeLoggerServiceProvider"
             ]
         }
     },

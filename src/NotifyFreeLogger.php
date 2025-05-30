@@ -1,11 +1,11 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel;
+namespace NotifyFree\LaravelLogger;
 
 use Monolog\Logger as Monolog;
 use Monolog\Level;
 use Monolog\Processor\PsrLogMessageProcessor;
-use NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler;
+use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
 
 class NotifyFreeLogger
 {
@@ -69,9 +69,9 @@ class NotifyFreeLogger
     /**
      * Prepare the handler for usage by Monolog.
      *
-     * @param  \NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler  $handler
+     * @param  \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler  $handler
      * @param  array  $config
-     * @return \NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler
+     * @return \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler
      */
     protected static function prepareHandler(NotifyFreeHandler $handler, array $config = []): NotifyFreeHandler
     {

@@ -1,10 +1,10 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Tests\Feature;
+namespace NotifyFree\LaravelLogger\Tests\Feature;
 
 use Orchestra\Testbench\TestCase;
 use Illuminate\Support\Facades\Log;
-use NotifyFree\LaravelLogChannel\NotifyFreeLoggerServiceProvider;
+use NotifyFree\LaravelLogger\NotifyFreeLoggerServiceProvider;
 
 class NotifyFreeLogChannelTest extends TestCase
 {

@@ -1,11 +1,11 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel\Tests\Unit;
+namespace NotifyFree\LaravelLogger\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler;
-use NotifyFree\LaravelLogChannel\Handlers\BatchNotifyFreeHandler;
-use NotifyFree\LaravelLogChannel\Handlers\CachedNotifyFreeHandler;
+use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
+use NotifyFree\LaravelLogger\Handlers\BatchNotifyFreeHandler;
+use NotifyFree\LaravelLogger\Handlers\CachedNotifyFreeHandler;
 
 class HandlersTest extends TestCase
 {

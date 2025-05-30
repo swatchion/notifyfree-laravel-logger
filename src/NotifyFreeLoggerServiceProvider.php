@@ -1,15 +1,15 @@
 <?php
 
-namespace NotifyFree\LaravelLogChannel;
+namespace NotifyFree\LaravelLogger;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Log\LogManager;
 use Monolog\Logger;
 use Monolog\Level;
-use NotifyFree\LaravelLogChannel\Handlers\NotifyFreeHandler;
-use NotifyFree\LaravelLogChannel\Http\NotifyFreeClient;
-use NotifyFree\LaravelLogChannel\Console\Commands\TestNotifyFreeLog;
-use NotifyFree\LaravelLogChannel\Console\Commands\NotifyFreeCacheManager;
+use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
+use NotifyFree\LaravelLogger\Http\NotifyFreeClient;
+use NotifyFree\LaravelLogger\Console\Commands\TestNotifyFreeLog;
+use NotifyFree\LaravelLogger\Console\Commands\NotifyFreeCacheManager;
 
 class NotifyFreeLoggerServiceProvider extends ServiceProvider
 {
