@@ -90,45 +90,14 @@ class NotifyFreeHandler extends AbstractProcessingHandler
 
     protected function logSendFailure(\Exception $e, LogRecord $record): void
     {
-        // 在容器环境下，优先使用 Laravel 日志系统，失败时使用 @error_log 压制错误
-        try {
-            // 检查是否在 Swoole 环境中
-            $isSwoole = false;
-            if (extension_loaded('swoole') && class_exists('\Swoole\Coroutine', false)) {
-                try {
-                    /** @phpstan-ignore-next-line */
-                    $isSwoole = \Swoole\Coroutine::getCid() > 0;
-                } catch (\Throwable $t) {
-                    $isSwoole = false;
-                }
-            }
-
-            if ($isSwoole) {
-                // 在协程环境中，直接使用 @error_log，压制任何错误
-                @error_log(sprintf(
-                    'NotifyFree log sending failed in Swoole context: %s (Original: %s)',
-                    $e->getMessage(),
-                    $record->message
-                ));
-            } else {
-                // 非 Swoole 环境，正常使用 Laravel 日志
-                $logger = app('log')->channel('single');
-                $logger->warning('NotifyFree log sending failed', [
-                    'error' => $e->getMessage(),
-                    'original_message' => $record->message,
-                    'original_level' => $record->level->getName(),
-                    'original_channel' => $record->channel,
-                    'timestamp' => $record->datetime->format('c'),
-                ]);
-            }
-        } catch (\Exception $logError) {
-            // 容器环境下的最后容错措施：使用 @ 压制 error_log 的任何错误
-            @error_log(sprintf(
-                'NotifyFree: Failed to log error. Original error: %s, Log error: %s',
-                $e->getMessage(),
-                $logError->getMessage()
-            ));
-        }
+        // 避免循环依赖，只使用 error_log 记录发送失败
+        // 这样可以确保不会触发其他日志通道，避免无限递归
+        @error_log(sprintf(
+            'NotifyFree log sending failed: %s (Original: [%s] %s)',
+            $e->getMessage(),
+            $record->level->getName(),
+            $record->message
+        ));
     }
 
     public function getFormatter(): NotifyFreeFormatter

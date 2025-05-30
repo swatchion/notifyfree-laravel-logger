@@ -70,7 +70,7 @@ class CachedNotifyFreeHandler extends NotifyFreeHandler
         return [
             'service_available' => $isConnected,
             'endpoint' => $this->config['endpoint'] ?? 'not configured',
-            'last_check' => now()->toISOString(),
+            'last_check' => date('c'), // 避免使用 now() 函数
         ];
     }
 
@@ -81,16 +81,18 @@ class CachedNotifyFreeHandler extends NotifyFreeHandler
     {
         $status = $this->getServiceStatus();
 
-        try {
-            $logger = app('log')->channel('single');
-            $level = $status['service_available'] ? 'info' : 'warning';
-            $message = $status['service_available']
-                ? 'NotifyFree service is available'
-                : 'NotifyFree service is unavailable';
+        // 避免循环依赖，只使用 error_log 记录服务状态
+        $level = $status['service_available'] ? 'INFO' : 'WARNING';
+        $message = $status['service_available']
+            ? 'NotifyFree service is available'
+            : 'NotifyFree service is unavailable';
 
-            $logger->$level($message, $status);
-        } catch (\Exception $e) {
-            error_log('Failed to log NotifyFree service status: ' . $e->getMessage());
-        }
+        @error_log(sprintf(
+            'NotifyFree [%s]: %s (Endpoint: %s, Last check: %s)',
+            $level,
+            $message,
+            $status['endpoint'],
+            $status['last_check']
+        ));
     }
 }

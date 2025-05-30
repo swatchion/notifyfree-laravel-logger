@@ -67,10 +67,11 @@ class NotifyFreeLogChannelServiceProvider extends ServiceProvider
      */
     protected function registerLogDriver(): void
     {
-        $logManager = $this->app->make('log');
-
-        $logManager->extend('notifyfree', function ($app, array $config) {
-            return $this->createNotifyFreeDriver($config);
+        // 延迟注册，避免在 boot 阶段立即访问 log 管理器
+        $this->app->afterResolving('log', function ($logManager) {
+            $logManager->extend('notifyfree', function ($app, array $config) {
+                return $this->createNotifyFreeDriver($config);
+            });
         });
     }
 
