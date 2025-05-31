@@ -23,6 +23,9 @@
 - 🔒 **敏感数据过滤**: 自动过滤密码、Token 等敏感信息
 - 🔄 **重试机制**: 内置指数退避重试机制
 - 📊 **连接测试**: 提供服务连接状态测试功能
+- ⚡ **智能批处理**: 默认启用的固定长度缓冲区批量发送，支持定时 flush
+- 🚀 **并发处理**: PHP 8.1+ Fiber 支持，chunk 间并发发送，无阻塞
+- 🧠 **智能缓存**: 服务状态缓存，减少不必要的连接检查
 
 ## 系统要求
 
@@ -30,6 +33,11 @@
 - Laravel 11.0+
 - Monolog 3.0+
 - Guzzle HTTP 7.0+
+
+### 可选功能要求
+
+- **并发处理**: PHP 8.1+ (Fiber 支持) - 用于 chunk 并发发送优化
+- **向后兼容**: PHP < 8.1 自动回退到串行处理模式
 
 ## 快速开始
 
@@ -84,12 +92,25 @@ NOTIFYFREE_APP_ID=your_app_id_here
 # 可选配置
 NOTIFYFREE_TIMEOUT=30
 NOTIFYFREE_RETRY=3
-NOTIFYFREE_BATCH_SIZE=10
+
+# 批处理配置（默认启用）
+NOTIFYFREE_BATCH_ENABLED=true
+NOTIFYFREE_BATCH_BUFFER_SIZE=50
+NOTIFYFREE_BATCH_FLUSH_TIMEOUT=5
+
+# 缓存配置
+NOTIFYFREE_CACHE_SERVICE_STATUS=true
+NOTIFYFREE_CACHE_SERVICE_STATUS_TTL=60
+
+# 格式化配置
 NOTIFYFREE_INCLUDE_CONTEXT=true
 NOTIFYFREE_INCLUDE_EXTRA=true
 NOTIFYFREE_TIMESTAMP_FORMAT="Y-m-d H:i:s"
 NOTIFYFREE_MAX_MESSAGE_LENGTH=1000
 LOG_LEVEL=debug
+
+# 废弃配置（向后兼容）
+NOTIFYFREE_BATCH_SIZE=10
 ```
 
 ### 完整日志通道配置
@@ -116,12 +137,28 @@ LOG_LEVEL=debug
         'level' => env('LOG_LEVEL', 'error'),
         'timeout' => env('NOTIFYFREE_TIMEOUT', 30),
         'retry_attempts' => env('NOTIFYFREE_RETRY', 3),
-        'batch_size' => env('NOTIFYFREE_BATCH_SIZE', 10),
         'bubble' => true,
+        
+        // 批处理配置（新功能）
+        'batch' => [
+            'enabled' => env('NOTIFYFREE_BATCH_ENABLED', true),
+            'buffer_size' => env('NOTIFYFREE_BATCH_BUFFER_SIZE', 50),
+            'flush_timeout' => env('NOTIFYFREE_BATCH_FLUSH_TIMEOUT', 5),
+        ],
+        
+        // 缓存配置（新功能）
+        'cache' => [
+            'service_status_enabled' => env('NOTIFYFREE_CACHE_SERVICE_STATUS', true),
+            'service_status_ttl' => env('NOTIFYFREE_CACHE_SERVICE_STATUS_TTL', 60),
+        ],
+        
         'format' => [
             'include_context' => env('NOTIFYFREE_INCLUDE_CONTEXT', true),
             'include_extra' => env('NOTIFYFREE_INCLUDE_EXTRA', true),
         ],
+        
+        // 废弃配置（向后兼容）
+        'batch_size' => env('NOTIFYFREE_BATCH_SIZE', 10), // 请使用 batch.buffer_size
     ],
 ],
 ```
@@ -224,6 +261,78 @@ echo \$result ? 'Remote send: SUCCESS' : 'Remote send: FAILED';
 "
 ```
 
+## 高级特性
+
+### 智能批处理 + 并发发送
+
+批处理功能默认启用，通过固定长度的缓冲区来优化性能，并支持 PHP 8.1+ Fiber 并发处理：
+
+```php
+// 批处理配置
+'batch' => [
+    'enabled' => true,           // 启用批处理（默认开启）
+    'buffer_size' => 50,         // 缓冲区大小（默认50条）
+    'flush_timeout' => 5,        // 自动 flush 超时时间（秒）
+],
+```
+
+**工作原理**：
+- 日志条目首先存储在内存缓冲区中（最多50条）
+- 当缓冲区达到 `buffer_size` 时自动批量发送
+- 批量发送时按每次10条进行分片处理（固定常量）
+- **PHP 8.1+ 并发优化**: 使用 Fiber 并发发送各个 chunk，无阻塞
+- **PHP < 8.1 兼容**: 自动回退到串行处理模式
+- 当超过 `flush_timeout` 时间且缓冲区不为空时，强制发送
+- 程序结束时自动清空缓冲区
+- 保留每条日志的原始时间戳，而非写入时间
+
+**性能优势**：
+- 减少网络请求次数，提高整体性能
+- Fiber 并发发送大幅减少总处理时间
+- 自动适配 PHP 版本，向后兼容
+- 被动检查设计，无额外后台进程
+
+### 智能缓存
+
+服务状态缓存减少不必要的连接检查：
+
+```php
+// 缓存配置
+'cache' => [
+    'service_status_enabled' => true,  // 启用服务状态缓存
+    'service_status_ttl' => 60,        // 缓存生存时间（秒）
+],
+```
+
+**功能**：
+- 缓存 NotifyFree 服务的连接状态
+- 避免频繁的连接测试
+- 支持手动缓存失效
+
+### 运行时控制
+
+```php
+use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
+
+// 获取 handler 实例（假设通过依赖注入或其他方式）
+$handler = app('log')->channel('notifyfree')->getHandlers()[0];
+
+// 批处理控制
+$handler->setBatchEnabled(false);          // 禁用批处理
+$handler->setBatchBufferSize(20);          // 设置缓冲区大小
+$handler->setBatchFlushTimeout(10);        // 设置超时时间
+$handler->flush();                          // 手动 flush
+$handler->clearBuffer();                    // 清空缓冲区
+
+// 缓存控制
+$handler->setCacheServiceStatusEnabled(false);  // 禁用状态缓存
+$handler->invalidateServiceStatusCache();       // 使缓存失效
+
+// 状态查询
+$status = $handler->getServiceStatus();
+$handler->logServiceStatus();               // 记录服务状态到错误日志
+```
+
 ## 性能优化
 
 ### 生产环境建议
@@ -233,6 +342,16 @@ LOG_CHANNEL=stack
 LOG_LEVEL=error              # 只发送重要日志到远程
 NOTIFYFREE_TIMEOUT=15        # 减少超时时间
 NOTIFYFREE_RETRY=2           # 减少重试次数
+
+# 优化批处理设置
+NOTIFYFREE_BATCH_ENABLED=true
+NOTIFYFREE_BATCH_BUFFER_SIZE=100     # 大缓冲区减少网络请求频率
+NOTIFYFREE_BATCH_FLUSH_TIMEOUT=30    # 适当增加超时时间
+
+# 优化缓存设置
+NOTIFYFREE_CACHE_SERVICE_STATUS=true
+NOTIFYFREE_CACHE_SERVICE_STATUS_TTL=300  # 增加缓存时间到5分钟
+
 APP_DEBUG=false
 ```
 
@@ -243,6 +362,16 @@ LOG_CHANNEL=stack
 LOG_LEVEL=debug              # 发送所有日志便于调试
 NOTIFYFREE_TIMEOUT=30
 NOTIFYFREE_RETRY=3
+
+# 开发环境批处理设置
+NOTIFYFREE_BATCH_ENABLED=true
+NOTIFYFREE_BATCH_BUFFER_SIZE=5       # 较小的缓冲区便于快速看到结果
+NOTIFYFREE_BATCH_FLUSH_TIMEOUT=3     # 更短的超时时间
+
+# 开发环境缓存设置
+NOTIFYFREE_CACHE_SERVICE_STATUS=true
+NOTIFYFREE_CACHE_SERVICE_STATUS_TTL=30   # 较短的缓存时间便于测试
+
 APP_DEBUG=true
 ```
 

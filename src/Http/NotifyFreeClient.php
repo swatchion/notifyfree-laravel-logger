@@ -111,9 +111,9 @@ class NotifyFreeClient
 
         while ($attempts < $this->retryAttempts) {
             try {
-                // 批量发送的数据格式
+                // 批量发送的数据格式 - 使用 messages 字段
                 $payload = [
-                    'logs' => $logDataBatch,
+                    'messages' => $logDataBatch,
                 ];
 
                 $response = $this->getHttpClient()->post($this->endpoint . '/batch', [

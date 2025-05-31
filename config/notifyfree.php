@@ -28,20 +28,55 @@ return [
 
     'retry_attempts' => (int) env('NOTIFYFREE_RETRY', 3),
 
-    'batch_size' => (int) env('NOTIFYFREE_BATCH_SIZE', 10),
+    /*
+    |--------------------------------------------------------------------------
+    | Batch Processing Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure batch processing behavior for improved performance.
+    | Batch processing is enabled by default and uses a fixed-length buffer.
+    |
+    */
+    'batch' => [
+        'enabled' => env('NOTIFYFREE_BATCH_ENABLED', true),
+        'buffer_size' => (int) env('NOTIFYFREE_BATCH_BUFFER_SIZE', 50),
+        'flush_timeout' => (int) env('NOTIFYFREE_BATCH_FLUSH_TIMEOUT', 5), // seconds
+    ],
 
     /*
     |--------------------------------------------------------------------------
-    | Handler Configuration
+    | Cache Configuration
     |--------------------------------------------------------------------------
     |
-    | Choose the appropriate handler for your needs:
-    | - NotifyFreeHandler: Basic synchronous sending
-    | - BatchNotifyFreeHandler: Batched sending for better performance
-    | - CachedNotifyFreeHandler: Enhanced with service status monitoring
+    | Configure caching for service status and connection monitoring.
     |
     */
-    'handler' => env('NOTIFYFREE_HANDLER', \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler::class),
+    'cache' => [
+        'service_status_enabled' => env('NOTIFYFREE_CACHE_SERVICE_STATUS', true),
+        'service_status_ttl' => (int) env('NOTIFYFREE_CACHE_SERVICE_STATUS_TTL', 60), // seconds
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Legacy Configuration (Deprecated)
+    |--------------------------------------------------------------------------
+    |
+    | These settings are kept for backward compatibility but are deprecated.
+    | Use the new 'batch' configuration section instead.
+    |
+    */
+    'batch_size' => (int) env('NOTIFYFREE_BATCH_SIZE', 10), // deprecated: use batch.buffer_size
+
+    /*
+    |--------------------------------------------------------------------------
+    | Handler Configuration (Deprecated)
+    |--------------------------------------------------------------------------
+    |
+    | The handler configuration is deprecated. All functionality is now
+    | integrated into the main NotifyFreeHandler with configurable features.
+    |
+    */
+    'handler' => env('NOTIFYFREE_HANDLER', \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler::class), // deprecated
 
     /*
     |--------------------------------------------------------------------------
