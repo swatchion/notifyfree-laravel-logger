@@ -3,39 +3,42 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | NotifyFree API Configuration
+    | NotifyFree 基础配置
     |--------------------------------------------------------------------------
     |
-    | These settings control how the log channel connects to NotifyFree service.
-    | Make sure to set the correct endpoint and authentication credentials.
+    | 基础配置需要在 .env 文件中设置以下参数：
+    | - NOTIFYFREE_TOKEN: 您的 NotifyFree API 令牌
+    | - NOTIFYFREE_APP_ID: 您的应用程序 ID
+    |
+    | 其他配置项都有合理的默认值，无需额外配置即可使用。
     |
     */
-    'endpoint' => env('NOTIFYFREE_ENDPOINT', 'https://api.notifyfree.com/v1/logs'),
 
-    'token' => env('NOTIFYFREE_TOKEN','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
+    // 必需配置项
+    'token' => env('NOTIFYFREE_TOKEN'),
+    'app_id' => env('NOTIFYFREE_APP_ID'),
 
-    'app_id' => env('NOTIFYFREE_APP_ID','1234567890'),
+    // 服务端点 - 生产环境使用默认值即可
+    'endpoint' => env('NOTIFYFREE_ENDPOINT', 'https://api.notifyfree.com/v1/messages'),
 
     /*
     |--------------------------------------------------------------------------
-    | Connection Settings
+    | NotifyFree 高级配置
     |--------------------------------------------------------------------------
     |
-    | Configure timeout, retry behavior and batch processing settings.
+    | 以下为高级配置选项，一般用户无需修改，适用于有特殊需求的高级用户。
+    | 如需自定义，可在 .env 文件中设置对应的环境变量。
     |
     */
-    'timeout' => (int) env('NOTIFYFREE_TIMEOUT', 30),
 
+    /*
+    | 连接设置
+    */
+    'timeout' => (int) env('NOTIFYFREE_TIMEOUT', 30),
     'retry_attempts' => (int) env('NOTIFYFREE_RETRY', 3),
 
     /*
-    |--------------------------------------------------------------------------
-    | Batch Processing Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configure batch processing behavior for improved performance.
-    | Batch processing is enabled by default and uses a fixed-length buffer.
-    |
+    | 批处理配置
     */
     'batch' => [
         'enabled' => env('NOTIFYFREE_BATCH_ENABLED', true),
@@ -44,12 +47,7 @@ return [
     ],
 
     /*
-    |--------------------------------------------------------------------------
-    | Cache Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configure caching for service status and connection monitoring.
-    |
+    | 缓存配置
     */
     'cache' => [
         'service_status_enabled' => env('NOTIFYFREE_CACHE_SERVICE_STATUS', true),
@@ -57,34 +55,13 @@ return [
     ],
 
     /*
-    |--------------------------------------------------------------------------
-    | Legacy Configuration (Deprecated)
-    |--------------------------------------------------------------------------
-    |
-    | These settings are kept for backward compatibility but are deprecated.
-    | Use the new 'batch' configuration section instead.
-    |
+    | 向后兼容配置（已废弃）
     */
     'batch_size' => (int) env('NOTIFYFREE_BATCH_SIZE', 10), // deprecated: use batch.buffer_size
-
-    /*
-    |--------------------------------------------------------------------------
-    | Handler Configuration (Deprecated)
-    |--------------------------------------------------------------------------
-    |
-    | The handler configuration is deprecated. All functionality is now
-    | integrated into the main NotifyFreeHandler with configurable features.
-    |
-    */
     'handler' => env('NOTIFYFREE_HANDLER', \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler::class), // deprecated
 
     /*
-    |--------------------------------------------------------------------------
-    | Log Format Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Control how log messages are formatted before sending to NotifyFree.
-    |
+    | 日志格式配置
     */
     'format' => [
         'include_context' => env('NOTIFYFREE_INCLUDE_CONTEXT', true),

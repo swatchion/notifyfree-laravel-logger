@@ -24,9 +24,17 @@ class NotifyFreeClient
         $this->timeout = $config['timeout'] ?? 30;
         $this->retryAttempts = $config['retry_attempts'] ?? 3;
 
-        // 如果关键配置缺失，记录警告但不抛出异常
-        if (empty($this->endpoint) || empty($this->token) || empty($this->applicationId)) {
-            error_log('NotifyFreeClient: Missing required configuration. Client will be non-functional.');
+        // 验证必需的配置项
+        if (empty($this->endpoint)) {
+            throw new \InvalidArgumentException('NotifyFree endpoint is required');
+        }
+
+        if (empty($this->token)) {
+            throw new \InvalidArgumentException('NotifyFree token is required');
+        }
+
+        if (empty($this->applicationId)) {
+            throw new \InvalidArgumentException('NotifyFree app_id is required. Please set NOTIFYFREE_APP_ID in your .env file');
         }
     }
 
@@ -70,10 +78,13 @@ class NotifyFreeClient
 
         while ($attempts < $this->retryAttempts) {
             try {
-                // 直接发送格式化后的日志数据，不添加额外的 app_id
-                // 因为服务端会通过 token 获取关联的应用ID
+                // 添加 app_id 到请求数据中
+                $requestData = array_merge($logData, [
+                    'app_id' => $this->applicationId
+                ]);
+
                 $response = $this->getHttpClient()->post($this->endpoint, [
-                    'json' => $logData,
+                    'json' => $requestData,
                 ]);
 
                 if ($response->getStatusCode() === 200) {

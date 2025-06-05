@@ -15,31 +15,31 @@ class NotifyFreeHandler extends AbstractProcessingHandler
      * Maximum number of log entries to send in a single batch request
      */
     private const BATCH_CHUNK_SIZE = 10;
-    
+
     protected ?NotifyFreeClient $client = null;
     protected ?FormatterInterface $formatter = null;
     protected array $config;
-    
+
     // Basic configuration
     protected string $endpoint;
     protected string $token;
     protected string $appId;
     protected int $timeout;
     protected int $retryAttempts;
-    
+
     // Batch processing configuration
     protected bool $batchEnabled;
     protected int $batchBufferSize;
     protected int $batchFlushTimeout;
     protected array $buffer = [];
     protected float $lastFlushTime;
-    
+
     // Cache configuration
     protected bool $cacheServiceStatusEnabled;
     protected int $cacheServiceStatusTtl;
     protected ?bool $serviceStatusCache = null;
     protected float $lastServiceStatusCheck = 0.0;
-    
+
     // Legacy compatibility
     protected bool $includeContext;
     protected bool $includeExtra;
@@ -97,19 +97,19 @@ class NotifyFreeHandler extends AbstractProcessingHandler
     {
         // Try to get configuration from Laravel config, fall back to defaults
         $globalConfig = $this->getGlobalConfig();
-        
+
         // Batch processing configuration
         $batchConfig = $globalConfig['batch'] ?? [];
         $this->batchEnabled = $batchConfig['enabled'] ?? true;
         $this->batchBufferSize = $batchConfig['buffer_size'] ?? $this->config['batch_size'] ?? 50;
         $this->batchFlushTimeout = $batchConfig['flush_timeout'] ?? 5;
         $this->lastFlushTime = microtime(true);
-        
+
         // Cache configuration
         $cacheConfig = $globalConfig['cache'] ?? [];
         $this->cacheServiceStatusEnabled = $cacheConfig['service_status_enabled'] ?? true;
         $this->cacheServiceStatusTtl = $cacheConfig['service_status_ttl'] ?? 60;
-        
+
         // Merge global config into local config
         $this->config = array_merge($this->config, $globalConfig);
     }
@@ -129,7 +129,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
                 return [];
             }
         }
-        
+
         return [];
     }
 
@@ -184,11 +184,11 @@ class NotifyFreeHandler extends AbstractProcessingHandler
     protected function addToBuffer(LogRecord $record): void
     {
         $formatted = $this->formatter->format($record);
-        
+
         // Preserve the original log record timestamp instead of using current time
         $originalTimestamp = $record->datetime->getTimestamp();
         $originalMicroseconds = (float) $record->datetime->format('U.u');
-        
+
         $this->buffer[] = [
             'data' => $formatted,
             'original_record' => $record,
@@ -203,7 +203,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
      */
     protected function shouldFlushByTimeout(): bool
     {
-        return !empty($this->buffer) && 
+        return !empty($this->buffer) &&
                (microtime(true) - $this->lastFlushTime) >= $this->batchFlushTimeout;
     }
 
@@ -226,14 +226,14 @@ class NotifyFreeHandler extends AbstractProcessingHandler
 
         try {
             $this->flushBufferInChunks();
-            
+
             // Clear buffer and update timestamp on successful send
             $this->buffer = [];
             $this->lastFlushTime = microtime(true);
-            
+
         } catch (\Exception $e) {
             $this->handleBatchSendFailure($e, $this->buffer);
-            
+
             // Clear buffer even on failure (no retry for batch failures)
             $this->buffer = [];
             $this->lastFlushTime = microtime(true);
@@ -247,9 +247,9 @@ class NotifyFreeHandler extends AbstractProcessingHandler
     {
         $logData = array_column($this->buffer, 'data');
         $chunks = array_chunk($logData, self::BATCH_CHUNK_SIZE);
-        
+
         $totalChunks = count($chunks);
-        
+
         // Check if Fiber is available and safe to use in current context
         if (class_exists('\Fiber') && $this->canUseFiber()) {
             $this->flushChunksConcurrently($chunks);
@@ -268,7 +268,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
         if ($this->isInDestructorContext()) {
             return false;
         }
-        
+
         // Try to create a simple test Fiber to check if context allows it
         try {
             $testFiber = new \Fiber(function() {
@@ -296,7 +296,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
                 return true;
             }
         }
-        
+
         // Check if script is ending
         if (function_exists('fastcgi_finish_request')) {
             // We're likely in a web context, check if finishing
@@ -305,7 +305,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -318,7 +318,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
         $successfulChunks = 0;
         $errors = [];
         $client = $this->getClient();
-        
+
         // Create all Fibers for concurrent execution
         $fibers = [];
         foreach ($chunks as $chunkIndex => $chunk) {
@@ -327,13 +327,13 @@ class NotifyFreeHandler extends AbstractProcessingHandler
                     try {
                         $result = $client->sendBatch($chunk);
                         return [
-                            'success' => $result, 
+                            'success' => $result,
                             'chunk_index' => $chunkIndex
                         ];
                     } catch (\Exception $e) {
                         return [
                             'success' => false,
-                            'chunk_index' => $chunkIndex, 
+                            'chunk_index' => $chunkIndex,
                             'error' => $e->getMessage()
                         ];
                     }
@@ -350,7 +350,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
             try {
                 $fiber->start();
                 $result = $fiber->getReturn();
-                
+
                 if ($result['success']) {
                     $successfulChunks++;
                 } else {
@@ -400,9 +400,9 @@ class NotifyFreeHandler extends AbstractProcessingHandler
                 $successfulChunks++;
             } catch (\Exception $e) {
                 $errors[] = sprintf(
-                    'Chunk %d/%d failed: %s', 
-                    $chunkIndex + 1, 
-                    $totalChunks, 
+                    'Chunk %d/%d failed: %s',
+                    $chunkIndex + 1,
+                    $totalChunks,
                     $e->getMessage()
                 );
             }
@@ -420,7 +420,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
     protected function logChunkFailures(array $errors, int $totalChunks, int $successfulChunks): void
     {
         $processingMode = class_exists('\Fiber') ? 'concurrent (Fiber)' : 'sequential';
-        
+
         @error_log(sprintf(
             'NotifyFree batch chunk processing (%s) completed with errors: %d/%d chunks successful. Errors: %s',
             $processingMode,
@@ -472,9 +472,9 @@ class NotifyFreeHandler extends AbstractProcessingHandler
         }
 
         $now = microtime(true);
-        
+
         // Check if we have cached result and it's still valid
-        if ($this->serviceStatusCache !== null && 
+        if ($this->serviceStatusCache !== null &&
             ($now - $this->lastServiceStatusCheck) < $this->cacheServiceStatusTtl) {
             return $this->serviceStatusCache;
         }
@@ -482,7 +482,7 @@ class NotifyFreeHandler extends AbstractProcessingHandler
         // Perform actual connection test and cache result
         $this->serviceStatusCache = $this->performConnectionTest();
         $this->lastServiceStatusCheck = $now;
-        
+
         return $this->serviceStatusCache;
     }
 
@@ -639,20 +639,20 @@ class NotifyFreeHandler extends AbstractProcessingHandler
             // Force sequential processing in destructor context
             $logData = array_column($this->buffer, 'data');
             $chunks = array_chunk($logData, self::BATCH_CHUNK_SIZE);
-            
+
             $this->flushChunksSequentially($chunks);
-            
+
             // Clear buffer and update timestamp
             $this->buffer = [];
             $this->lastFlushTime = microtime(true);
-            
+
         } catch (\Exception $e) {
             // In destructor, just log the error and continue
             @error_log(sprintf(
                 'NotifyFree safe flush failed in destructor: %s',
                 $e->getMessage()
             ));
-            
+
             // Clear buffer to prevent memory leaks
             $this->buffer = [];
             $this->lastFlushTime = microtime(true);
