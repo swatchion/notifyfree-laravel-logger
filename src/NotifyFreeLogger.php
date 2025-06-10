@@ -23,7 +23,7 @@ class NotifyFreeLogger
                 self::prepareHandler(new NotifyFreeHandler(
                     $config['endpoint'] ?? '',
                     $config['token'] ?? '',
-                    '', // app_id deprecated, server gets it from token
+                    $config['app_id'] ?? '',
                     $config['timeout'] ?? 30,
                     $config['retry_attempts'] ?? 3,
                     $config['batch_size'] ?? 10,

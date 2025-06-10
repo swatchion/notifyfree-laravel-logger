@@ -122,8 +122,9 @@ class NotifyFreeClient
 
         while ($attempts < $this->retryAttempts) {
             try {
-                // 批量发送的数据格式 - 使用 messages 字段
+                // 批量发送的数据格式 - 添加 app_id 到请求数据中
                 $payload = [
+                    'app_id' => $this->applicationId,
                     'messages' => $logDataBatch,
                 ];
 
