@@ -4,16 +4,23 @@ namespace NotifyFree\LaravelLogger\Http;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
-use NotifyFree\LaravelLogger\Exceptions\NotifyFreeNetworkException;
+use GuzzleHttp\Promise\PromiseInterface;
+
 use NotifyFree\LaravelLogger\Exceptions\NotifyFreeAuthException;
+use NotifyFree\LaravelLogger\Exceptions\NotifyFreeNetworkException;
 
 class NotifyFreeClient
 {
     protected ?Client $httpClient = null;
+
     protected string $endpoint;
+
     protected string $token;
+
     protected string $applicationId;
+
     protected int $timeout;
+
     protected int $retryAttempts;
 
     public function __construct(array $config)
@@ -49,7 +56,7 @@ class NotifyFreeClient
                 'timeout' => $this->timeout,
                 'headers' => [
                     'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer ' . $this->token,
+                    'Authorization' => 'Bearer '.$this->token,
                     'User-Agent' => 'NotifyFree-Laravel-Log-Channel/1.0',
                 ],
             ];
@@ -66,55 +73,13 @@ class NotifyFreeClient
 
             $this->httpClient = new Client($options);
         }
+
         return $this->httpClient;
     }
 
-    /**
-     * 发送单条日志数据
-     */
-    public function send(array $logData): bool
-    {
-        $attempts = 0;
-
-        while ($attempts < $this->retryAttempts) {
-            try {
-                // 添加 app_id 到请求数据中
-                $requestData = array_merge($logData, [
-                    'app_id' => $this->applicationId
-                ]);
-
-                $response = $this->getHttpClient()->post($this->endpoint, [
-                    'json' => $requestData,
-                ]);
-
-                if ($response->getStatusCode() === 200) {
-                    return true;
-                }
-
-            } catch (RequestException $e) {
-                $attempts++;
-
-                if ($e->getCode() === 401) {
-                    throw new NotifyFreeAuthException('Authentication failed: Invalid token');
-                }
-
-                if ($attempts >= $this->retryAttempts) {
-                    throw new NotifyFreeNetworkException(
-                        'Failed to send log after ' . $this->retryAttempts . ' attempts: ' . $e->getMessage()
-                    );
-                }
-
-                // 指数退避重试
-                sleep(pow(2, $attempts - 1));
-            }
-        }
-
-        return false;
-    }
 
     /**
      * 批量发送日志数据
-     * 注意：当前服务端可能不支持批量接口，这个方法为将来扩展预留
      */
     public function sendBatch(array $logDataBatch): bool
     {
@@ -128,7 +93,7 @@ class NotifyFreeClient
                     'messages' => $logDataBatch,
                 ];
 
-                $response = $this->getHttpClient()->post($this->endpoint . '/batch', [
+                $response = $this->getHttpClient()->post($this->endpoint.'/batch', [
                     'json' => $payload,
                 ]);
 
@@ -143,14 +108,9 @@ class NotifyFreeClient
                     throw new NotifyFreeAuthException('Authentication failed: Invalid token');
                 }
 
-                // 如果批量接口不存在 (404)，尝试逐个发送
-                if ($e->getCode() === 404) {
-                    return $this->sendBatchIndividually($logDataBatch);
-                }
-
                 if ($attempts >= $this->retryAttempts) {
                     throw new NotifyFreeNetworkException(
-                        'Failed to send batch logs after ' . $this->retryAttempts . ' attempts: ' . $e->getMessage()
+                        'Failed to send batch logs after '.$this->retryAttempts.' attempts: '.$e->getMessage()
                     );
                 }
 
@@ -162,26 +122,42 @@ class NotifyFreeClient
         return false;
     }
 
-    /**
-     * 当批量接口不可用时，逐个发送日志
-     */
-    protected function sendBatchIndividually(array $logDataBatch): bool
-    {
-        $successCount = 0;
-        foreach ($logDataBatch as $logData) {
-            try {
-                if ($this->send($logData)) {
-                    $successCount++;
-                }
-            } catch (\Exception $e) {
-                // 继续发送其他日志，不因单条失败而停止
-                continue;
-            }
-        }
 
-        // 如果超过一半成功，认为批量发送成功
-        return $successCount > (count($logDataBatch) / 2);
+
+
+
+    /**
+     * 异步批量发送日志数据
+     */
+    public function sendBatchAsync(array $logDataBatch): PromiseInterface
+    {
+        // 批量发送的数据格式 - 添加 app_id 到请求数据中
+        $payload = [
+            'app_id' => $this->applicationId,
+            'messages' => $logDataBatch,
+        ];
+
+        return $this->getHttpClient()->postAsync($this->endpoint . '/batch', [
+            'json' => $payload,
+        ])->then(
+            function ($response) {
+                return $response->getStatusCode() === 200;
+            },
+            function ($e) {
+                if ($e instanceof RequestException && $e->getCode() === 401) {
+                    throw new NotifyFreeAuthException('Authentication failed: Invalid token');
+                }
+
+
+
+                throw new NotifyFreeNetworkException(
+                    'Failed to send batch logs: ' . $e->getMessage()
+                );
+            }
+        );
     }
+
+
 
     /**
      * 测试连接
@@ -191,6 +167,7 @@ class NotifyFreeClient
         try {
             // 使用 HEAD 请求测试连接，避免实际发送数据
             $response = $this->getHttpClient()->head($this->endpoint);
+
             return in_array($response->getStatusCode(), [200, 405]); // 405 表示方法不允许但端点存在
         } catch (\Exception $e) {
             return false;

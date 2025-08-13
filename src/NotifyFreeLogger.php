@@ -2,8 +2,8 @@
 
 namespace NotifyFree\LaravelLogger;
 
-use Monolog\Logger as Monolog;
 use Monolog\Level;
+use Monolog\Logger as Monolog;
 use Monolog\Processor\PsrLogMessageProcessor;
 use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
 
@@ -11,9 +11,6 @@ class NotifyFreeLogger
 {
     /**
      * Create a custom NotifyFree driver instance, similar to Laravel's createSlackDriver
-     *
-     * @param  array  $config
-     * @return \Monolog\Logger
      */
     public static function createDriver(array $config): Monolog
     {
@@ -34,15 +31,12 @@ class NotifyFreeLogger
                     $config['fallback_enabled'] ?? true
                 ), $config),
             ],
-            $config['replace_placeholders'] ?? false ? [new PsrLogMessageProcessor()] : []
+            $config['replace_placeholders'] ?? false ? [new PsrLogMessageProcessor] : []
         );
     }
 
     /**
      * Parse the string level into a Monolog constant.
-     *
-     * @param  array  $config
-     * @return int
      */
     protected static function level(array $config): int
     {
@@ -57,9 +51,6 @@ class NotifyFreeLogger
 
     /**
      * Parse the channel name from the configuration.
-     *
-     * @param  array  $config
-     * @return string
      */
     protected static function parseChannel(array $config): string
     {
@@ -68,10 +59,6 @@ class NotifyFreeLogger
 
     /**
      * Prepare the handler for usage by Monolog.
-     *
-     * @param  \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler  $handler
-     * @param  array  $config
-     * @return \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler
      */
     protected static function prepareHandler(NotifyFreeHandler $handler, array $config = []): NotifyFreeHandler
     {
@@ -88,13 +75,13 @@ class NotifyFreeLogger
      * @var array
      */
     protected static $levels = [
-        'debug'     => Level::Debug->value,
-        'info'      => Level::Info->value,
-        'notice'    => Level::Notice->value,
-        'warning'   => Level::Warning->value,
-        'error'     => Level::Error->value,
-        'critical'  => Level::Critical->value,
-        'alert'     => Level::Alert->value,
+        'debug' => Level::Debug->value,
+        'info' => Level::Info->value,
+        'notice' => Level::Notice->value,
+        'warning' => Level::Warning->value,
+        'error' => Level::Error->value,
+        'critical' => Level::Critical->value,
+        'alert' => Level::Alert->value,
         'emergency' => Level::Emergency->value,
     ];
 }

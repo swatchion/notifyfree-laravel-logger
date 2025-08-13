@@ -35,29 +35,29 @@ class NotifyFreeFormatter implements FormatterInterface
 
         // 构建扁平化的 metadata，避免嵌套结构
         $metadata = [];
-        
+
         // 添加基本信息
         $metadata['channel'] = $record->channel;
         $metadata['level_value'] = $record->level->value;
-        
+
         // 合并 context 数据（排除 tags）
-        if ($this->shouldIncludeContext() && !empty($record->context)) {
+        if ($this->shouldIncludeContext() && ! empty($record->context)) {
             foreach ($record->context as $key => $value) {
                 if ($key !== 'tags') { // 排除 tags，因为已经单独处理
                     $metadata[$key] = $this->sanitizeValue($value);
                 }
             }
         }
-        
+
         // 合并 extra 数据
-        if ($this->shouldIncludeExtra() && !empty($record->extra)) {
+        if ($this->shouldIncludeExtra() && ! empty($record->extra)) {
             foreach ($record->extra as $key => $value) {
-                $metadata['extra_' . $key] = $this->sanitizeValue($value);
+                $metadata['extra_'.$key] = $this->sanitizeValue($value);
             }
         }
-        
+
         // 只有在有数据时才添加 metadata
-        if (!empty($metadata)) {
+        if (! empty($metadata)) {
             $formatted['metadata'] = $metadata;
         }
 
@@ -81,7 +81,7 @@ class NotifyFreeFormatter implements FormatterInterface
         } elseif (is_string($value) && $this->containsSensitiveData($value)) {
             return '[FILTERED]';
         }
-        
+
         return $value;
     }
 
@@ -95,6 +95,7 @@ class NotifyFreeFormatter implements FormatterInterface
                 return false;
             }
         }
+
         return true;
     }
 
@@ -138,7 +139,7 @@ class NotifyFreeFormatter implements FormatterInterface
         $maxLength = $this->config['max_message_length'] ?? 1000;
 
         if (strlen($message) > $maxLength) {
-            return substr($message, 0, $maxLength - 3) . '...';
+            return substr($message, 0, $maxLength - 3).'...';
         }
 
         return $message;
@@ -151,7 +152,7 @@ class NotifyFreeFormatter implements FormatterInterface
     {
         $sensitiveKeys = $this->config['sensitive_keys'] ?? [
             'password', 'token', 'secret', 'key', 'auth',
-            'api_key', 'access_token', 'refresh_token', 'authorization'
+            'api_key', 'access_token', 'refresh_token', 'authorization',
         ];
 
         return $this->recursiveFilter($data, $sensitiveKeys);
@@ -222,6 +223,7 @@ class NotifyFreeFormatter implements FormatterInterface
     public function setConfig(array $config): self
     {
         $this->config = array_merge($this->config, $config);
+
         return $this;
     }
 }

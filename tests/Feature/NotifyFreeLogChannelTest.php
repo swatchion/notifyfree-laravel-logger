@@ -2,9 +2,9 @@
 
 namespace NotifyFree\LaravelLogger\Tests\Feature;
 
-use Orchestra\Testbench\TestCase;
 use Illuminate\Support\Facades\Log;
 use NotifyFree\LaravelLogger\NotifyFreeLoggerServiceProvider;
+use Orchestra\Testbench\TestCase;
 
 class NotifyFreeLogChannelTest extends TestCase
 {
@@ -45,7 +45,7 @@ class NotifyFreeLogChannelTest extends TestCase
             'logging.channels.single' => [
                 'driver' => 'single',
                 'path' => storage_path('logs/test.log'),
-            ]
+            ],
         ]);
 
         Log::channel('stack')->info('测试 stack 通道');

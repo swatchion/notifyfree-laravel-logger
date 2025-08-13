@@ -3,13 +3,12 @@
 namespace NotifyFree\LaravelLogger;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Log\LogManager;
-use Monolog\Logger;
 use Monolog\Level;
+use Monolog\Logger;
+use NotifyFree\LaravelLogger\Console\Commands\NotifyFreeCacheManager;
+use NotifyFree\LaravelLogger\Console\Commands\TestNotifyFreeLog;
 use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
 use NotifyFree\LaravelLogger\Http\NotifyFreeClient;
-use NotifyFree\LaravelLogger\Console\Commands\TestNotifyFreeLog;
-use NotifyFree\LaravelLogger\Console\Commands\NotifyFreeCacheManager;
 
 class NotifyFreeLoggerServiceProvider extends ServiceProvider
 {
@@ -27,6 +26,7 @@ class NotifyFreeLoggerServiceProvider extends ServiceProvider
         // 注册NotifyFree客户端
         $this->app->singleton(NotifyFreeClient::class, function ($app) {
             $config = $app['config']['notifyfree'] ?? [];
+
             return new NotifyFreeClient($config);
         });
     }
@@ -104,13 +104,13 @@ class NotifyFreeLoggerServiceProvider extends ServiceProvider
     protected function parseLevel($level): int
     {
         $levels = [
-            'debug'     => Level::Debug->value,
-            'info'      => Level::Info->value,
-            'notice'    => Level::Notice->value,
-            'warning'   => Level::Warning->value,
-            'error'     => Level::Error->value,
-            'critical'  => Level::Critical->value,
-            'alert'     => Level::Alert->value,
+            'debug' => Level::Debug->value,
+            'info' => Level::Info->value,
+            'notice' => Level::Notice->value,
+            'warning' => Level::Warning->value,
+            'error' => Level::Error->value,
+            'critical' => Level::Critical->value,
+            'alert' => Level::Alert->value,
             'emergency' => Level::Emergency->value,
         ];
 

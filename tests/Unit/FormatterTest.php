@@ -2,10 +2,10 @@
 
 namespace NotifyFree\LaravelLogger\Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
-use NotifyFree\LaravelLogger\Formatters\NotifyFreeFormatter;
-use Monolog\LogRecord;
 use Monolog\Level;
+use Monolog\LogRecord;
+use NotifyFree\LaravelLogger\Formatters\NotifyFreeFormatter;
+use PHPUnit\Framework\TestCase;
 
 class FormatterTest extends TestCase
 {
@@ -14,7 +14,7 @@ class FormatterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $config = [
             'include_context' => true,
             'include_extra' => true,
@@ -22,14 +22,14 @@ class FormatterTest extends TestCase
             'max_message_length' => 100,
             'sensitive_keys' => ['password', 'token', 'secret'],
         ];
-        
+
         $this->formatter = new NotifyFreeFormatter(['format' => $config]);
     }
 
     public function test_can_format_basic_log_record()
     {
         $record = new LogRecord(
-            datetime: new \DateTimeImmutable(),
+            datetime: new \DateTimeImmutable,
             channel: 'test',
             level: Level::Info,
             message: 'Test message',

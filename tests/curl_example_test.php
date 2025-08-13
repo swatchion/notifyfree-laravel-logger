@@ -14,36 +14,36 @@ $data = [
             'metadata' => [
                 'batch_id' => 'batch_001',
                 'sequence' => 1,
-                'source' => 'performance_test'
+                'source' => 'performance_test',
             ],
-            'timestamp' => '2023-01-01T10:00:00Z'
+            'timestamp' => '2023-01-01T10:00:00Z',
         ],
         [
             'message' => '批量消息4 - InfluxDB批量写入',
-            'level' => 'warn', 
+            'level' => 'warn',
             'tags' => ['batch', 'influxdb', 'test2'],
             'metadata' => [
                 'batch_id' => 'batch_001',
                 'sequence' => 2,
-                'source' => 'performance_test'
-            ]
+                'source' => 'performance_test',
+            ],
         ],
         [
             'message' => '批量消息6 - 多应用同步',
             'level' => 'error',
             'tags' => ['batch', 'multi-app', 'test3'],
             'metadata' => [
-                'batch_id' => 'batch_001', 
+                'batch_id' => 'batch_001',
                 'sequence' => 3,
-                'source' => 'performance_test'
-            ]
-        ]
-    ]
+                'source' => 'performance_test',
+            ],
+        ],
+    ],
 ];
 
 $headers = [
-    'Authorization: Bearer ' . $token,
-    'Content-Type: application/json'
+    'Authorization: Bearer '.$token,
+    'Content-Type: application/json',
 ];
 
 $ch = curl_init();
@@ -54,7 +54,7 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
 echo "发送您提供的示例数据:\n";
-echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n\n";
+echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n\n";
 
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);

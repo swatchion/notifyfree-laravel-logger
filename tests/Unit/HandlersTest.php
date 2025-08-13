@@ -2,10 +2,10 @@
 
 namespace NotifyFree\LaravelLogger\Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
-use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
 use NotifyFree\LaravelLogger\Handlers\BatchNotifyFreeHandler;
 use NotifyFree\LaravelLogger\Handlers\CachedNotifyFreeHandler;
+use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
+use PHPUnit\Framework\TestCase;
 
 class HandlersTest extends TestCase
 {
@@ -14,7 +14,7 @@ class HandlersTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->testConfig = [
             'endpoint' => 'https://test.notifyfree.com/api/v1/messages',
             'token' => 'test-token',
@@ -53,10 +53,10 @@ class HandlersTest extends TestCase
     public function test_batch_handler_buffer_operations()
     {
         $handler = new BatchNotifyFreeHandler($this->testConfig);
-        
+
         // 初始缓冲区为空
         $this->assertEquals(0, $handler->getBufferSize());
-        
+
         // 清空缓冲区
         $handler->clearBuffer();
         $this->assertEquals(0, $handler->getBufferSize());

@@ -45,7 +45,8 @@ class NotifyFreeCacheManager extends Command
 
             default:
                 $this->error("未知的操作: {$action}");
-                $this->info("可用操作: stats, retry, clear");
+                $this->info('可用操作: stats, retry, clear');
+
                 return 1;
         }
 
@@ -58,6 +59,7 @@ class NotifyFreeCacheManager extends Command
     protected function createCachedHandler(): CachedNotifyFreeHandler
     {
         $config = config('notifyfree');
+
         return new CachedNotifyFreeHandler($config);
     }
 
@@ -71,15 +73,16 @@ class NotifyFreeCacheManager extends Command
         $this->info('📊 NotifyFree缓存日志统计');
         $this->line('========================');
 
-        if (!$stats['file_exists']) {
+        if (! $stats['file_exists']) {
             $this->line('✅ 没有缓存文件，所有日志都已成功发送');
+
             return;
         }
 
         $this->line("📄 缓存文件: {$stats['file_path']}");
-        $this->line("📏 文件大小: " . $this->formatBytes($stats['file_size']));
+        $this->line('📏 文件大小: '.$this->formatBytes($stats['file_size']));
         $this->line("📝 日志条数: {$stats['log_count']}");
-        $this->line("🗂️ 最大文件大小: " . $this->formatBytes($stats['max_file_size']));
+        $this->line('🗂️ 最大文件大小: '.$this->formatBytes($stats['max_file_size']));
 
         if ($stats['log_count'] > 0) {
             $this->warn("⚠️  有 {$stats['log_count']} 条日志等待重试发送");
@@ -99,7 +102,7 @@ class NotifyFreeCacheManager extends Command
         if ($successCount > 0) {
             $this->info("✅ 成功重试发送 {$successCount} 条日志");
         } else {
-            $this->warn("⚠️  没有日志可以重试，或重试全部失败");
+            $this->warn('⚠️  没有日志可以重试，或重试全部失败');
         }
 
         // 显示重试后的统计信息
@@ -112,15 +115,17 @@ class NotifyFreeCacheManager extends Command
      */
     protected function clearCache(CachedNotifyFreeHandler $handler): void
     {
-        if (!$this->confirm('确定要清空所有缓存日志吗？此操作不可逆！')) {
+        if (! $this->confirm('确定要清空所有缓存日志吗？此操作不可逆！')) {
             $this->info('取消操作');
+
             return;
         }
 
         $stats = $handler->getCacheStats();
 
-        if (!$stats['file_exists']) {
+        if (! $stats['file_exists']) {
             $this->info('ℹ️  没有缓存文件需要清空');
+
             return;
         }
 
@@ -146,6 +151,6 @@ class NotifyFreeCacheManager extends Command
             $i++;
         }
 
-        return round($bytes, 2) . ' ' . $units[$i];
+        return round($bytes, 2).' '.$units[$i];
     }
 }

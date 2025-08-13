@@ -1,11 +1,11 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__.'/vendor/autoload.php';
 
-use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
+use Monolog\Level;
 use Monolog\Logger;
 use Monolog\LogRecord;
-use Monolog\Level;
+use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
 
 echo "=== Buffer 行为测试 ===\n\n";
 
@@ -22,7 +22,7 @@ echo "   创建新的 handler 实例...\n";
 
 // 添加一条日志
 $record = new LogRecord(
-    new DateTimeImmutable(),
+    new DateTimeImmutable,
     'test_channel',
     Level::Error,
     '测试单条日志',
@@ -30,7 +30,7 @@ $record = new LogRecord(
 );
 
 $handler->handle($record);
-echo "   ✓ 日志已添加，当前缓冲区大小: " . $handler->getBufferSize() . "\n";
+echo '   ✓ 日志已添加，当前缓冲区大小: '.$handler->getBufferSize()."\n";
 echo "   脚本即将结束，__destruct() 将被调用...\n";
 
 // 这里脚本结束，析构函数会被调用，导致 flush
@@ -41,21 +41,21 @@ echo "2. 测试同一进程中的多条日志\n";
 // 在同一个进程中添加多条日志
 for ($i = 1; $i <= 5; $i++) {
     $record = new LogRecord(
-        new DateTimeImmutable(),
+        new DateTimeImmutable,
         'test_channel',
         Level::Error,
         "批量测试消息 {$i}",
         ['test' => 'batch', 'sequence' => $i]
     );
-    
+
     $handler->handle($record);
-    echo "   ✓ 日志 {$i} 已添加，当前缓冲区大小: " . $handler->getBufferSize() . "\n";
+    echo "   ✓ 日志 {$i} 已添加，当前缓冲区大小: ".$handler->getBufferSize()."\n";
 }
 
-echo "   当前缓冲区大小: " . $handler->getBufferSize() . "\n";
+echo '   当前缓冲区大小: '.$handler->getBufferSize()."\n";
 echo "   手动 flush 测试...\n";
 $handler->flush();
-echo "   ✓ 手动 flush 完成，缓冲区大小: " . $handler->getBufferSize() . "\n";
+echo '   ✓ 手动 flush 完成，缓冲区大小: '.$handler->getBufferSize()."\n";
 
 echo "\n=== 分析完成 ===\n";
 echo "说明：\n";

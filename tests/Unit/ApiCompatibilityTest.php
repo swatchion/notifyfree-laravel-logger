@@ -2,10 +2,10 @@
 
 namespace NotifyFree\LaravelLogger\Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
-use NotifyFree\LaravelLogger\Formatters\NotifyFreeFormatter;
-use Monolog\LogRecord;
 use Monolog\Level;
+use Monolog\LogRecord;
+use NotifyFree\LaravelLogger\Formatters\NotifyFreeFormatter;
+use PHPUnit\Framework\TestCase;
 
 class ApiCompatibilityTest extends TestCase
 {
@@ -14,14 +14,14 @@ class ApiCompatibilityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $config = [
             'include_context' => true,
             'include_extra' => true,
             'timestamp_format' => 'Y-m-d H:i:s',
             'max_message_length' => 1000,
         ];
-        
+
         $this->formatter = new NotifyFreeFormatter(['format' => $config]);
     }
 
@@ -41,20 +41,20 @@ class ApiCompatibilityTest extends TestCase
         // 验证必需字段
         $this->assertArrayHasKey('message', $formatted);
         $this->assertArrayHasKey('level', $formatted);
-        
+
         // 验证字段格式
         $this->assertIsString($formatted['message']);
         $this->assertIsString($formatted['level']);
         $this->assertEquals('error', $formatted['level']); // 应该是字符串而不是数字
-        
+
         // 验证可选字段
         $this->assertArrayHasKey('metadata', $formatted);
         $this->assertArrayHasKey('tags', $formatted);
-        
+
         // 验证 tags 格式
         $this->assertIsArray($formatted['tags']);
         $this->assertEquals(['urgent', 'api'], $formatted['tags']);
-        
+
         // 验证 metadata 结构
         $this->assertIsArray($formatted['metadata']);
         $this->assertArrayHasKey('context', $formatted['metadata']);

@@ -72,7 +72,7 @@ return [
         // 敏感数据过滤
         'sensitive_keys' => [
             'password', 'token', 'secret', 'key', 'auth',
-            'api_key', 'access_token', 'refresh_token', 'authorization'
+            'api_key', 'access_token', 'refresh_token', 'authorization',
         ],
     ],
 
