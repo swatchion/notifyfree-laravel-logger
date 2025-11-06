@@ -159,6 +159,31 @@ Log::error('数据库连接失败', ['database' => 'main', 'error_code' => 'TIME
 Log::warning('API 响应缓慢', ['endpoint' => '/api/users', 'response_time' => 3.5]);
 ```
 
+### 日志级别映射
+
+Laravel 使用 Monolog 的标准日志级别，但 NotifyFree 服务只支持 4 个级别。包会自动进行映射：
+
+| Laravel/Monolog 级别 | NotifyFree 级别 | 说明 |
+|---------------------|----------------|------|
+| `debug` | `debug` | 调试信息 |
+| `info` | `info` | 一般信息 |
+| `notice` | `info` | 映射到 info |
+| `warning` | `warn` | 警告信息 |
+| `error` | `error` | 错误信息 |
+| `critical` | `error` | 映射到 error |
+| `alert` | `error` | 映射到 error |
+| `emergency` | `error` | 映射到 error |
+
+```php
+// 这些都可以正常使用，会自动映射
+Log::debug('Debug message');      // -> debug
+Log::info('Info message');        // -> info
+Log::notice('Notice message');    // -> info
+Log::warning('Warning message');  // -> warn
+Log::error('Error message');      // -> error
+Log::critical('Critical error');  // -> error
+```
+
 ### 敏感数据过滤
 
 ```php
@@ -358,47 +383,3 @@ php artisan config:clear
 # 重新发现包
 php artisan package:discover
 ```
-
-## 版本兼容性
-
-| Package | Laravel | PHP     | 特性 |
-|---------|---------|---------|------|
-| 1.2.x   | 8.0-12.x| 7.4+    | Guzzle Promise 并发，优化批处理 |
-| 1.1.x   | 11.x    | 8.2+    | Fiber 并发 |
-
-## 1.2 版本更新说明
-
-### 🚀 主要改进
-
-- **更广泛的兼容性**: 支持 PHP 7.4+ 和 Laravel 8.0+
-- **简化的 API**: 移除批处理开关，批处理功能始终启用
-- **更稳定的实现**: 基于成熟的 curl_multi 技术，无需特殊扩展
-
-### 🔄 迁移指南
-
-从 1.1 版本升级到 1.2：
-
-1. **环境变量更新**:
-   ```env
-   # 移除（不再需要）
-   # NOTIFYFREE_BATCH_ENABLED=true
-
-   # 保留其他配置不变
-   NOTIFYFREE_BATCH_BUFFER_SIZE=50
-   NOTIFYFREE_BATCH_FLUSH_TIMEOUT=5
-   ```
-
-2. **代码更新**:
-   ```php
-   // 移除的方法调用
-   // $handler->setBatchEnabled(false);  // 不再支持
-
-   // 保留的方法调用
-   $handler->setBatchBufferSize(20);     // 仍然支持
-   $handler->flush();                    // 仍然支持
-   ```
-
-3. **配置文件更新**:
-   - 批处理配置中移除 `enabled` 选项
-   - 其他配置保持不变
-

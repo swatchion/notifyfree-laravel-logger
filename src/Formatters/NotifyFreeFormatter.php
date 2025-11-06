@@ -22,7 +22,7 @@ class NotifyFreeFormatter implements FormatterInterface
         // 构建符合服务端API规范的数据格式
         $formatted = [
             'message' => $this->truncateMessage($record->message),
-            'level' => strtolower($record->level->getName()),
+            'level' => $this->normalizeLevel($record->level->getName()),
             'timestamp' => $record->datetime->format($this->getTimestampFormat()),
         ];
 
@@ -105,6 +105,33 @@ class NotifyFreeFormatter implements FormatterInterface
     public function formatBatch(array $records): array
     {
         return array_map([$this, 'format'], $records);
+    }
+
+    /**
+     * 标准化日志级别为服务端接受的格式
+     *
+     * Monolog 使用标准级别名称，但服务端可能使用不同的命名
+     * 映射关系：
+     * - warning -> warn (服务端使用缩写)
+     * - notice -> info (服务端不支持 notice，映射到 info)
+     * - critical/alert/emergency -> error (服务端不支持这些级别，映射到 error)
+     */
+    protected function normalizeLevel(string $level): string
+    {
+        $levelMap = [
+            'DEBUG' => 'debug',
+            'INFO' => 'info',
+            'NOTICE' => 'info',      // notice 映射到 info
+            'WARNING' => 'warn',     // warning 映射到 warn
+            'ERROR' => 'error',
+            'CRITICAL' => 'error',   // critical 映射到 error
+            'ALERT' => 'error',      // alert 映射到 error
+            'EMERGENCY' => 'error',  // emergency 映射到 error
+        ];
+
+        $upperLevel = strtoupper($level);
+
+        return $levelMap[$upperLevel] ?? 'info'; // 默认返回 info
     }
 
     /**
