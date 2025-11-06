@@ -78,58 +78,15 @@ class NotifyFreeClient
     }
 
 
-    /**
-     * 批量发送日志数据
-     */
-    public function sendBatch(array $logDataBatch): bool
-    {
-        $attempts = 0;
-
-        while ($attempts < $this->retryAttempts) {
-            try {
-                // 批量发送的数据格式 - 添加 app_id 到请求数据中
-                $payload = [
-                    'app_id' => $this->applicationId,
-                    'messages' => $logDataBatch,
-                ];
-
-                $response = $this->getHttpClient()->post($this->endpoint.'/batch', [
-                    'json' => $payload,
-                ]);
-
-                if ($response->getStatusCode() === 200) {
-                    return true;
-                }
-
-            } catch (RequestException $e) {
-                $attempts++;
-
-                if ($e->getCode() === 401) {
-                    throw new NotifyFreeAuthException('Authentication failed: Invalid token');
-                }
-
-                if ($attempts >= $this->retryAttempts) {
-                    throw new NotifyFreeNetworkException(
-                        'Failed to send batch logs after '.$this->retryAttempts.' attempts: '.$e->getMessage()
-                    );
-                }
-
-                // 指数退避重试
-                sleep(pow(2, $attempts - 1));
-            }
-        }
-
-        return false;
-    }
 
 
 
 
 
     /**
-     * 异步批量发送日志数据
+     * 异步批量发送日志数据（带重试机制）
      */
-    public function sendBatchAsync(array $logDataBatch): PromiseInterface
+    public function sendBatchAsync(array $logDataBatch, int $attempt = 0): PromiseInterface
     {
         // 批量发送的数据格式 - 添加 app_id 到请求数据中
         $payload = [
@@ -143,18 +100,77 @@ class NotifyFreeClient
             function ($response) {
                 return $response->getStatusCode() === 200;
             },
-            function ($e) {
+            function ($e) use ($logDataBatch, $attempt) {
                 if ($e instanceof RequestException && $e->getCode() === 401) {
                     throw new NotifyFreeAuthException('Authentication failed: Invalid token');
                 }
 
-
+                // 如果还有重试次数，进行重试
+                if ($attempt < $this->retryAttempts - 1) {
+                    // 指数退避等待
+                    usleep(pow(2, $attempt) * 1000000);
+                    return $this->sendBatchAsync($logDataBatch, $attempt + 1);
+                }
 
                 throw new NotifyFreeNetworkException(
-                    'Failed to send batch logs: ' . $e->getMessage()
+                    'Failed to send batch logs after ' . $this->retryAttempts . ' attempts: ' . $e->getMessage()
                 );
             }
         );
+    }
+
+    /**
+     * 并发发送多个批次（优化后的实现）
+     *
+     * @param array $batches 多个批次的日志数据
+     * @return array 返回结果统计 ['success' => int, 'failed' => int, 'errors' => array]
+     */
+    public function sendMultipleBatchesAsync(array $batches): array
+    {
+        if (empty($batches)) {
+            return ['success' => 0, 'failed' => 0, 'errors' => []];
+        }
+
+        $totalBatches = count($batches);
+        $successCount = 0;
+        $failedCount = 0;
+        $errors = [];
+
+        try {
+            // 创建所有异步请求的 promises
+            $promises = [];
+            foreach ($batches as $index => $batch) {
+                $promises[$index] = $this->sendBatchAsync($batch);
+            }
+
+            // 使用 Guzzle Promise 并发执行所有请求
+            $results = \GuzzleHttp\Promise\Utils::settle($promises)->wait();
+
+            // 处理结果
+            foreach ($results as $index => $result) {
+                if ($result['state'] === 'fulfilled' && $result['value'] === true) {
+                    $successCount++;
+                } else {
+                    $failedCount++;
+                    $errorMsg = $result['state'] === 'rejected'
+                        ? ($result['reason']->getMessage() ?? 'Unknown error')
+                        : 'Request failed';
+                    $errors[] = sprintf('Batch %d/%d: %s', $index + 1, $totalBatches, $errorMsg);
+                }
+            }
+
+        } catch (\Exception $e) {
+            // Promise 处理本身失败
+            $failedCount = $totalBatches;
+            $errors[] = 'Promise processing failed: ' . $e->getMessage();
+        }
+
+        return [
+            'success' => $successCount,
+            'failed' => $failedCount,
+            'total' => $totalBatches,
+            'errors' => $errors,
+        ];
     }
 
 

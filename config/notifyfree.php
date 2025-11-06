@@ -39,26 +39,13 @@ return [
 
     /*
     | 批处理配置
+    | buffer_size: 最小值 50，缓冲区达到此大小时自动发送
+    | flush_timeout: 最小值 10 秒，超过此时间未发送则自动发送
     */
     'batch' => [
-        'enabled' => env('NOTIFYFREE_BATCH_ENABLED', true),
         'buffer_size' => (int) env('NOTIFYFREE_BATCH_BUFFER_SIZE', 50),
-        'flush_timeout' => (int) env('NOTIFYFREE_BATCH_FLUSH_TIMEOUT', 5), // seconds
+        'flush_timeout' => (int) env('NOTIFYFREE_BATCH_FLUSH_TIMEOUT', 10), // seconds
     ],
-
-    /*
-    | 缓存配置
-    */
-    'cache' => [
-        'service_status_enabled' => env('NOTIFYFREE_CACHE_SERVICE_STATUS', true),
-        'service_status_ttl' => (int) env('NOTIFYFREE_CACHE_SERVICE_STATUS_TTL', 60), // seconds
-    ],
-
-    /*
-    | 向后兼容配置（已废弃）
-    */
-    'batch_size' => (int) env('NOTIFYFREE_BATCH_SIZE', 10), // deprecated: use batch.buffer_size
-    'handler' => env('NOTIFYFREE_HANDLER', \NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler::class), // deprecated
 
     /*
     | 日志格式配置

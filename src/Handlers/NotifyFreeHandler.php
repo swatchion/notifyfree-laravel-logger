@@ -2,7 +2,6 @@
 
 namespace NotifyFree\LaravelLogger\Handlers;
 
-use GuzzleHttp\Promise\Utils as PromiseUtils;
 use Monolog\Formatter\FormatterInterface;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Logger;
@@ -19,8 +18,19 @@ class NotifyFreeHandler extends AbstractProcessingHandler
 
     /**
      * Maximum number of log entries to send in a single batch request
+     * 每批次最多发送 50 条日志，如果 buffer 不足 50 条则按实际数量发送
      */
-    private const BATCH_CHUNK_SIZE = 10;
+    private const BATCH_CHUNK_SIZE = 50;
+
+    /**
+     * Minimum buffer size to prevent too frequent requests
+     */
+    private const MIN_BUFFER_SIZE = 50;
+
+    /**
+     * Minimum flush timeout in seconds to prevent too frequent requests
+     */
+    private const MIN_FLUSH_TIMEOUT = 10;
 
     protected ?NotifyFreeClient $client = null;
 
@@ -49,85 +59,53 @@ class NotifyFreeHandler extends AbstractProcessingHandler
 
     protected float $lastFlushTime;
 
-    // Cache configuration
-    protected bool $cacheServiceStatusEnabled;
-
-    protected int $cacheServiceStatusTtl;
-
-    protected ?bool $serviceStatusCache = null;
-
-    protected float $lastServiceStatusCheck = 0.0;
 
     // Legacy compatibility
     protected bool $includeContext;
 
     protected bool $includeExtra;
 
-    protected bool $fallbackEnabled;
-
-    public function __construct(
-        string $endpoint,
-        string $token,
-        string $appId,
-        int $timeout = 30,
-        int $retryAttempts = 3,
-        int $batchSize = 10, // Deprecated parameter for backward compatibility
-        bool $includeContext = true,
-        bool $includeExtra = true,
-        int $level = Logger::DEBUG,
-        bool $bubble = true,
-        bool $fallbackEnabled = true
-    ) {
+    public function __construct(array $config, int $level = Logger::DEBUG, bool $bubble = true)
+    {
         parent::__construct($level, $bubble);
 
-        $this->endpoint = $endpoint;
-        $this->token = $token;
-        $this->appId = $appId;
-        $this->timeout = $timeout;
-        $this->retryAttempts = $retryAttempts;
-        $this->includeContext = $includeContext;
-        $this->includeExtra = $includeExtra;
-        $this->fallbackEnabled = $fallbackEnabled;
+        // Store config
+        $this->config = $config;
 
-        // Build configuration array for backward compatibility
-        $this->config = [
-            'endpoint' => $endpoint,
-            'token' => $token,
-            'app_id' => $appId,
-            'timeout' => $timeout,
-            'retry_attempts' => $retryAttempts,
-            'batch_size' => $batchSize, // Deprecated
-            'format' => [
-                'include_context' => $includeContext,
-                'include_extra' => $includeExtra,
-            ],
-            'fallback' => [
-                'enabled' => $fallbackEnabled,
-            ],
-        ];
+        // Extract basic config
+        $this->endpoint = $config['endpoint'] ?? '';
+        $this->token = $config['token'] ?? '';
+        $this->appId = $config['app_id'] ?? '';
+        $this->timeout = $config['timeout'] ?? 30;
+        $this->retryAttempts = $config['retry_attempts'] ?? 3;
 
+        // Format config
+        $formatConfig = $config['format'] ?? [];
+        $this->includeContext = $formatConfig['include_context'] ?? true;
+        $this->includeExtra = $formatConfig['include_extra'] ?? true;
+
+        // Initialize features
         $this->initializeFeatures();
         $this->formatter = new NotifyFreeFormatter($this->config);
     }
 
     /**
-     * Initialize batch processing and cache features based on configuration
+     * Initialize batch processing features based on configuration
      */
     protected function initializeFeatures(): void
     {
         // Try to get configuration from Laravel config, fall back to defaults
         $globalConfig = $this->getGlobalConfig();
 
-        // Batch processing configuration
+        // Batch processing configuration with minimum value enforcement
         $batchConfig = $globalConfig['batch'] ?? [];
-        $this->batchBufferSize = $batchConfig['buffer_size'] ?? $this->config['batch_size'] ?? 50;
-        $this->batchFlushTimeout = $batchConfig['flush_timeout'] ?? 5;
-        $this->lastFlushTime = microtime(true);
+        $bufferSize = $batchConfig['buffer_size'] ?? 50;
+        $flushTimeout = $batchConfig['flush_timeout'] ?? 10;
 
-        // Cache configuration
-        $cacheConfig = $globalConfig['cache'] ?? [];
-        $this->cacheServiceStatusEnabled = $cacheConfig['service_status_enabled'] ?? true;
-        $this->cacheServiceStatusTtl = $cacheConfig['service_status_ttl'] ?? 60;
+        // Enforce minimum values
+        $this->batchBufferSize = max($bufferSize, self::MIN_BUFFER_SIZE);
+        $this->batchFlushTimeout = max($flushTimeout, self::MIN_FLUSH_TIMEOUT);
+        $this->lastFlushTime = microtime(true);
 
         // Merge global config into local config
         $this->config = array_merge($this->config, $globalConfig);
@@ -247,88 +225,20 @@ class NotifyFreeHandler extends AbstractProcessingHandler
 
     /**
      * Flush buffer in chunks with concurrent processing using Guzzle Promise
+     *
+     * 优化后的实现：将并发处理逻辑委托给 Client，Handler 只负责协调
      */
     protected function flushBufferInChunks(): void
     {
         $logData = array_column($this->buffer, 'data');
         $chunks = array_chunk($logData, self::BATCH_CHUNK_SIZE);
 
-        // Use Guzzle Promise for concurrent processing
-        $this->flushChunksConcurrently($chunks);
-    }
+        // 委托给 Client 处理并发发送
+        $result = $this->getClient()->sendMultipleBatchesAsync($chunks);
 
-
-
-    /**
-     * Flush chunks using Guzzle Promise concurrent processing
-     */
-    protected function flushChunksConcurrently(array $chunks): void
-    {
-        $totalChunks = count($chunks);
-        $successfulChunks = 0;
-        $errors = [];
-        $client = $this->getClient();
-
-        try {
-            // Create all promises for concurrent execution
-            $promises = [];
-            foreach ($chunks as $chunkIndex => $chunk) {
-                $promises[$chunkIndex] = $client->sendBatchAsync($chunk)->then(
-                    function ($result) use ($chunkIndex) {
-                        return [
-                            'success' => $result,
-                            'chunk_index' => $chunkIndex,
-                        ];
-                    },
-                    function ($exception) use ($chunkIndex) {
-                        return [
-                            'success' => false,
-                            'chunk_index' => $chunkIndex,
-                            'error' => $exception->getMessage(),
-                        ];
-                    }
-                );
-            }
-
-            // Wait for all promises to complete
-            $results = PromiseUtils::settle($promises)->wait();
-
-            // Process results
-            foreach ($results as $chunkIndex => $result) {
-                if ($result['state'] === 'fulfilled') {
-                    $value = $result['value'];
-                    if ($value['success']) {
-                        $successfulChunks++;
-                    } else {
-                        $errors[] = sprintf(
-                            'Chunk %d/%d failed: %s',
-                            $value['chunk_index'] + 1,
-                            $totalChunks,
-                            $value['error'] ?? 'Unknown error'
-                        );
-                    }
-                } else {
-                    $errors[] = sprintf(
-                        'Chunk %d/%d promise failed: %s',
-                        $chunkIndex + 1,
-                        $totalChunks,
-                        $result['reason']->getMessage() ?? 'Unknown error'
-                    );
-                }
-            }
-
-            // Log any errors
-            if (! empty($errors)) {
-                $this->logChunkFailures($errors, $totalChunks, $successfulChunks);
-            }
-
-        } catch (\Exception $e) {
-            // If Promise processing fails, log the error
-            $this->logChunkFailures(
-                ['Promise processing failed: ' . $e->getMessage()],
-                $totalChunks,
-                0
-            );
+        // 记录错误（如果有）
+        if ($result['failed'] > 0) {
+            $this->logChunkFailures($result['errors'], $result['total'], $result['success']);
         }
     }
 
@@ -381,33 +291,9 @@ class NotifyFreeHandler extends AbstractProcessingHandler
     }
 
     /**
-     * Test connection with caching support
+     * Test connection to NotifyFree service
      */
     public function testConnection(): bool
-    {
-        if (! $this->cacheServiceStatusEnabled) {
-            return $this->performConnectionTest();
-        }
-
-        $now = microtime(true);
-
-        // Check if we have cached result and it's still valid
-        if ($this->serviceStatusCache !== null &&
-            ($now - $this->lastServiceStatusCheck) < $this->cacheServiceStatusTtl) {
-            return $this->serviceStatusCache;
-        }
-
-        // Perform actual connection test and cache result
-        $this->serviceStatusCache = $this->performConnectionTest();
-        $this->lastServiceStatusCheck = $now;
-
-        return $this->serviceStatusCache;
-    }
-
-    /**
-     * Perform actual connection test
-     */
-    protected function performConnectionTest(): bool
     {
         try {
             return $this->getClient()->testConnection();
@@ -428,9 +314,6 @@ class NotifyFreeHandler extends AbstractProcessingHandler
             'service_available' => $isConnected,
             'endpoint' => $this->config['endpoint'] ?? 'not configured',
             'last_check' => date('c'),
-            'cache_enabled' => $this->cacheServiceStatusEnabled,
-            'cache_ttl' => $this->cacheServiceStatusTtl,
-
             'batch_buffer_size' => $this->batchBufferSize,
             'batch_flush_timeout' => $this->batchFlushTimeout,
             'batch_chunk_size' => self::BATCH_CHUNK_SIZE,
@@ -452,11 +335,10 @@ class NotifyFreeHandler extends AbstractProcessingHandler
             : 'NotifyFree service is unavailable';
 
         @error_log(sprintf(
-            'NotifyFree [%s]: %s (Endpoint: %s, Cache: %s, Buffer: %d/%d, Chunk: %d, Concurrent: %s)',
+            'NotifyFree [%s]: %s (Endpoint: %s, Buffer: %d/%d, Chunk: %d, Concurrent: %s)',
             $level,
             $message,
             $status['endpoint'],
-            $status['cache_enabled'] ? 'enabled' : 'disabled',
             $status['current_buffer_size'],
             $status['batch_buffer_size'],
             $status['batch_chunk_size'],
@@ -482,36 +364,18 @@ class NotifyFreeHandler extends AbstractProcessingHandler
 
     public function setBatchBufferSize(int $size): self
     {
-        $this->batchBufferSize = max(1, $size); // Ensure minimum size of 1
+        $this->batchBufferSize = max($size, self::MIN_BUFFER_SIZE);
 
         return $this;
     }
 
     public function setBatchFlushTimeout(int $timeout): self
     {
-        $this->batchFlushTimeout = max(1, $timeout); // Ensure minimum timeout of 1 second
+        $this->batchFlushTimeout = max($timeout, self::MIN_FLUSH_TIMEOUT);
 
         return $this;
     }
 
-    /**
-     * Cache utility methods
-     */
-    public function setCacheServiceStatusEnabled(bool $enabled): self
-    {
-        $this->cacheServiceStatusEnabled = $enabled;
-        if (! $enabled) {
-            $this->invalidateServiceStatusCache();
-        }
-
-        return $this;
-    }
-
-    public function invalidateServiceStatusCache(): void
-    {
-        $this->serviceStatusCache = null;
-        $this->lastServiceStatusCheck = 0.0;
-    }
 
     /**
      * Legacy compatibility methods

@@ -5,7 +5,6 @@ namespace NotifyFree\LaravelLogger;
 use Illuminate\Support\ServiceProvider;
 use Monolog\Level;
 use Monolog\Logger;
-use NotifyFree\LaravelLogger\Console\Commands\NotifyFreeCacheManager;
 use NotifyFree\LaravelLogger\Console\Commands\TestNotifyFreeLog;
 use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
 use NotifyFree\LaravelLogger\Http\NotifyFreeClient;
@@ -45,7 +44,6 @@ class NotifyFreeLoggerServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 TestNotifyFreeLog::class,
-                NotifyFreeCacheManager::class,
             ]);
         }
 
@@ -70,30 +68,18 @@ class NotifyFreeLoggerServiceProvider extends ServiceProvider
             'level' => 'debug',
             'timeout' => 30,
             'retry_attempts' => 3,
-            'batch_size' => 10,
             'format' => [
                 'include_context' => true,
                 'include_extra' => true,
-            ],
-            'fallback' => [
-                'enabled' => true,
             ],
         ], $notifyFreeConfig, $config);
 
         // 创建 Monolog Logger
         return new Logger('notifyfree', [
             new NotifyFreeHandler(
-                $mergedConfig['endpoint'] ?? '',
-                $mergedConfig['token'] ?? '',
-                $mergedConfig['app_id'] ?? '',
-                $mergedConfig['timeout'] ?? 30,
-                $mergedConfig['retry_attempts'] ?? 3,
-                $mergedConfig['batch_size'] ?? 10,
-                $mergedConfig['format']['include_context'] ?? true,
-                $mergedConfig['format']['include_extra'] ?? true,
+                $mergedConfig,
                 $this->parseLevel($mergedConfig['level'] ?? 'debug'),
-                $mergedConfig['bubble'] ?? true,
-                $mergedConfig['fallback']['enabled'] ?? true
+                $mergedConfig['bubble'] ?? true
             ),
         ]);
     }

@@ -94,13 +94,9 @@ NOTIFYFREE_APP_ID=your_app_id_here
 NOTIFYFREE_TIMEOUT=30
 NOTIFYFREE_RETRY=3
 
-# 批处理配置（始终启用）
+# 批处理配置（最小值：buffer_size=50, flush_timeout=10秒）
 NOTIFYFREE_BATCH_BUFFER_SIZE=50
-NOTIFYFREE_BATCH_FLUSH_TIMEOUT=5
-
-# 缓存配置
-NOTIFYFREE_CACHE_SERVICE_STATUS=true
-NOTIFYFREE_CACHE_SERVICE_STATUS_TTL=60
+NOTIFYFREE_BATCH_FLUSH_TIMEOUT=10
 
 # 格式化配置
 NOTIFYFREE_INCLUDE_CONTEXT=true
@@ -108,10 +104,6 @@ NOTIFYFREE_INCLUDE_EXTRA=true
 NOTIFYFREE_TIMESTAMP_FORMAT="Y-m-d H:i:s"
 NOTIFYFREE_MAX_MESSAGE_LENGTH=1000
 LOG_LEVEL=debug
-
-# 废弃配置（向后兼容）
-NOTIFYFREE_BATCH_SIZE=10
-NOTIFYFREE_BATCH_ENABLED=true
 ```
 
 ### 完整日志通道配置
@@ -139,27 +131,17 @@ NOTIFYFREE_BATCH_ENABLED=true
         'timeout' => env('NOTIFYFREE_TIMEOUT', 30),
         'retry_attempts' => env('NOTIFYFREE_RETRY', 3),
         'bubble' => true,
-        
-        // 批处理配置（始终启用）
+
+        // 批处理配置（最小值：buffer_size=50, flush_timeout=10秒）
         'batch' => [
             'buffer_size' => env('NOTIFYFREE_BATCH_BUFFER_SIZE', 50),
-            'flush_timeout' => env('NOTIFYFREE_BATCH_FLUSH_TIMEOUT', 5),
+            'flush_timeout' => env('NOTIFYFREE_BATCH_FLUSH_TIMEOUT', 10),
         ],
-        
-        // 缓存配置（新功能）
-        'cache' => [
-            'service_status_enabled' => env('NOTIFYFREE_CACHE_SERVICE_STATUS', true),
-            'service_status_ttl' => env('NOTIFYFREE_CACHE_SERVICE_STATUS_TTL', 60),
-        ],
-        
+
         'format' => [
             'include_context' => env('NOTIFYFREE_INCLUDE_CONTEXT', true),
             'include_extra' => env('NOTIFYFREE_INCLUDE_EXTRA', true),
         ],
-        
-        // 废弃配置（向后兼容）
-        'batch_size' => env('NOTIFYFREE_BATCH_SIZE', 10), // 请使用 batch.buffer_size
-        'batch_enabled' => env('NOTIFYFREE_BATCH_ENABLED', true), // 批处理现在始终启用
     ],
 ],
 ```
@@ -251,16 +233,6 @@ php artisan tinker --execute="Log::info('测试双写功能', ['test' => true]);
 tail storage/logs/laravel.log
 ```
 
-### 4. 直接测试远程批量发送
-
-```bash
-php artisan tinker --execute="
-\$config = config('notifyfree');
-\$client = new \\NotifyFree\\LaravelLogger\\Http\\NotifyFreeClient(\$config);
-\$result = \$client->sendBatch([['message' => 'Direct batch test', 'level' => 'info']]);
-echo \$result ? 'Remote batch send: SUCCESS' : 'Remote batch send: FAILED';
-"
-```
 
 ## 高级特性
 
@@ -271,15 +243,20 @@ echo \$result ? 'Remote batch send: SUCCESS' : 'Remote batch send: FAILED';
 ```php
 // 批处理配置（始终启用）
 'batch' => [
-    'buffer_size' => 50,         // 缓冲区大小（默认50条）
-    'flush_timeout' => 5,        // 自动 flush 超时时间（秒）
+    'buffer_size' => 50,         // 缓冲区大小（默认50条，最小50）
+    'flush_timeout' => 10,       // 自动 flush 超时时间（秒，默认10秒，最小10秒）
 ],
 ```
+
+**最小值限制**：
+- `buffer_size`: 最小值 50 条，低于此值将自动使用 50
+- `flush_timeout`: 最小值 10 秒，低于此值将自动使用 10 秒
+- 这些限制防止过于频繁的网络请求，保证系统性能
 
 **工作原理**：
 - 日志条目首先存储在内存缓冲区中（最多50条）
 - 当缓冲区达到 `buffer_size` 时自动批量发送
-- 批量发送时按每次10条进行分片处理（固定常量）
+- 批量发送时按每次 50 条进行分片处理（固定常量，如果不足 50 条则按实际数量发送）
 - **高性能并发**: 使用 Guzzle Promise + curl_multi 并发发送各个 chunk，真正的 I/O 并发
 - **广泛兼容**: 支持 PHP 7.4+ 的所有版本，并发处理失败时自动回退到串行模式
 - 当超过 `flush_timeout` 时间且缓冲区不为空时，强制发送
@@ -293,22 +270,6 @@ echo \$result ? 'Remote batch send: SUCCESS' : 'Remote batch send: FAILED';
 - 广泛的 PHP 版本兼容性，无需特殊扩展
 - 被动检查设计，无额外后台进程
 
-### 智能缓存
-
-服务状态缓存减少不必要的连接检查：
-
-```php
-// 缓存配置
-'cache' => [
-    'service_status_enabled' => true,  // 启用服务状态缓存
-    'service_status_ttl' => 60,        // 缓存生存时间（秒）
-],
-```
-
-**功能**：
-- 缓存 NotifyFree 服务的连接状态
-- 避免频繁的连接测试
-- 支持手动缓存失效
 
 ### 运行时控制
 
@@ -318,15 +279,11 @@ use NotifyFree\LaravelLogger\Handlers\NotifyFreeHandler;
 // 获取 handler 实例（假设通过依赖注入或其他方式）
 $handler = app('log')->channel('notifyfree')->getHandlers()[0];
 
-// 批处理控制（批处理始终启用，但可以调整参数）
-$handler->setBatchBufferSize(20);          // 设置缓冲区大小
-$handler->setBatchFlushTimeout(10);        // 设置超时时间
+// 批处理控制（注意：会自动强制最小值限制）
+$handler->setBatchBufferSize(100);         // 设置缓冲区大小（最小50）
+$handler->setBatchFlushTimeout(20);        // 设置超时时间（最小10秒）
 $handler->flush();                          // 手动 flush
 $handler->clearBuffer();                    // 清空缓冲区
-
-// 缓存控制
-$handler->setCacheServiceStatusEnabled(false);  // 禁用状态缓存
-$handler->invalidateServiceStatusCache();       // 使缓存失效
 
 // 状态查询
 $status = $handler->getServiceStatus();
@@ -343,13 +300,9 @@ LOG_LEVEL=error              # 只发送重要日志到远程
 NOTIFYFREE_TIMEOUT=15        # 减少超时时间
 NOTIFYFREE_RETRY=2           # 减少重试次数
 
-# 优化批处理设置（批处理始终启用）
+# 优化批处理设置（最小值限制：50/10秒）
 NOTIFYFREE_BATCH_BUFFER_SIZE=100     # 大缓冲区减少网络请求频率
 NOTIFYFREE_BATCH_FLUSH_TIMEOUT=30    # 适当增加超时时间
-
-# 优化缓存设置
-NOTIFYFREE_CACHE_SERVICE_STATUS=true
-NOTIFYFREE_CACHE_SERVICE_STATUS_TTL=300  # 增加缓存时间到5分钟
 
 APP_DEBUG=false
 ```
@@ -362,13 +315,9 @@ LOG_LEVEL=debug              # 发送所有日志便于调试
 NOTIFYFREE_TIMEOUT=30
 NOTIFYFREE_RETRY=3
 
-# 开发环境批处理设置（批处理始终启用）
-NOTIFYFREE_BATCH_BUFFER_SIZE=5       # 较小的缓冲区便于快速看到结果
-NOTIFYFREE_BATCH_FLUSH_TIMEOUT=3     # 更短的超时时间
-
-# 开发环境缓存设置
-NOTIFYFREE_CACHE_SERVICE_STATUS=true
-NOTIFYFREE_CACHE_SERVICE_STATUS_TTL=30   # 较短的缓存时间便于测试
+# 开发环境批处理设置（最小值限制：50/10秒）
+NOTIFYFREE_BATCH_BUFFER_SIZE=50      # 使用最小值
+NOTIFYFREE_BATCH_FLUSH_TIMEOUT=10    # 使用最小值
 
 APP_DEBUG=true
 ```
@@ -422,7 +371,6 @@ php artisan package:discover
 ### 🚀 主要改进
 
 - **更广泛的兼容性**: 支持 PHP 7.4+ 和 Laravel 8.0+
-- **更好的并发性能**: 使用 Guzzle Promise + curl_multi 替代 Fiber，实现真正的 I/O 并发
 - **简化的 API**: 移除批处理开关，批处理功能始终启用
 - **更稳定的实现**: 基于成熟的 curl_multi 技术，无需特殊扩展
 

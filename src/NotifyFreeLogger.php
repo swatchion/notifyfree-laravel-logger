@@ -17,19 +17,14 @@ class NotifyFreeLogger
         return new Monolog(
             self::parseChannel($config),
             [
-                self::prepareHandler(new NotifyFreeHandler(
-                    $config['endpoint'] ?? '',
-                    $config['token'] ?? '',
-                    $config['app_id'] ?? '',
-                    $config['timeout'] ?? 30,
-                    $config['retry_attempts'] ?? 3,
-                    $config['batch_size'] ?? 10,
-                    $config['include_context'] ?? true,
-                    $config['include_extra'] ?? true,
-                    self::level($config),
-                    $config['bubble'] ?? true,
-                    $config['fallback_enabled'] ?? true
-                ), $config),
+                self::prepareHandler(
+                    new NotifyFreeHandler(
+                        $config,
+                        self::level($config),
+                        $config['bubble'] ?? true
+                    ),
+                    $config
+                ),
             ],
             $config['replace_placeholders'] ?? false ? [new PsrLogMessageProcessor] : []
         );
