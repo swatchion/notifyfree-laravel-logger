@@ -31,33 +31,39 @@ class TestNotifyFreeLog extends Command
         $this->info("开始测试NotifyFree日志通道: {$channel}");
 
         try {
+            $timestamp = now()->format('Y-m-d H:i:s.u');
+
             // 测试不同级别的日志
-            Log::channel($channel)->debug('这是一条调试日志', [
+            Log::channel($channel)->debug("[{$timestamp}] 这是一条调试日志", [
                 'user_id' => 123,
                 'action' => 'test_debug',
                 'timestamp' => now()->toDateTimeString(),
             ]);
 
-            Log::channel($channel)->info('用户登录成功', [
+            $timestamp = now()->format('Y-m-d H:i:s.u');
+            Log::channel($channel)->info("[{$timestamp}] 用户登录成功", [
                 'user_id' => 456,
                 'ip' => '192.168.1.100',
                 'user_agent' => 'Test Browser',
             ]);
 
-            Log::channel($channel)->warning('系统资源使用率较高', [
+            $timestamp = now()->format('Y-m-d H:i:s.u');
+            Log::channel($channel)->warning("[{$timestamp}] 系统资源使用率较高", [
                 'cpu_usage' => '85%',
                 'memory_usage' => '78%',
                 'disk_usage' => '65%',
             ]);
 
-            Log::channel($channel)->error('数据库连接失败', [
+            $timestamp = now()->format('Y-m-d H:i:s.u');
+            Log::channel($channel)->error("[{$timestamp}] 数据库连接失败", [
                 'database' => 'main',
                 'error_code' => 'CONNECTION_TIMEOUT',
                 'retry_count' => 3,
             ]);
 
             // 测试敏感数据过滤
-            Log::channel($channel)->info('用户认证', [
+            $timestamp = now()->format('Y-m-d H:i:s.u');
+            Log::channel($channel)->info("[{$timestamp}] 用户认证", [
                 'username' => 'test_user',
                 'password' => 'secret123', // 应该被过滤
                 'token' => 'bearer_token_xyz', // 应该被过滤

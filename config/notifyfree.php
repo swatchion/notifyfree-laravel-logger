@@ -63,4 +63,14 @@ return [
         ],
     ],
 
+    /*
+    | 调试日志配置
+    | 独立的调试日志文件，用于监控 NotifyFree 包的功能状态
+    | 此日志独立于 Laravel 日志系统，使用 fprintf 直接写入
+    */
+    'debug_log' => [
+        'enabled' => env('NOTIFYFREE_DEBUG_LOG_ENABLED', false),
+        'path' => env('NOTIFYFREE_DEBUG_LOG_PATH', storage_path('logs/notifyfree-handler.log')),
+    ],
+
 ];

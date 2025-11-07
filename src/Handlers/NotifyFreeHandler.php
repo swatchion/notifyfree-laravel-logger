@@ -65,6 +65,11 @@ class NotifyFreeHandler extends AbstractProcessingHandler
 
     protected bool $includeExtra;
 
+    // Debug logging
+    protected bool $enableDebugLog;
+
+    protected ?string $debugLogPath = null;
+
     public function __construct(array $config, int $level = Logger::DEBUG, bool $bubble = true)
     {
         parent::__construct($level, $bubble);
@@ -83,6 +88,10 @@ class NotifyFreeHandler extends AbstractProcessingHandler
         $formatConfig = $config['format'] ?? [];
         $this->includeContext = $formatConfig['include_context'] ?? true;
         $this->includeExtra = $formatConfig['include_extra'] ?? true;
+
+        // Debug logging config
+        $this->enableDebugLog = $config['debug_log']['enabled'] ?? false;
+        $this->debugLogPath = $config['debug_log']['path'] ?? null;
 
         // Initialize features
         $this->initializeFeatures();
@@ -179,6 +188,54 @@ class NotifyFreeHandler extends AbstractProcessingHandler
             'original_microseconds' => $originalMicroseconds,
             'buffer_timestamp' => microtime(true), // When it was added to buffer
         ];
+
+        // Write debug log if enabled
+        $this->writeDebugLog($record, $formatted);
+    }
+
+    /**
+     * Write debug log to independent file for monitoring package functionality
+     */
+    protected function writeDebugLog(LogRecord $record, array $formatted): void
+    {
+        if (! $this->enableDebugLog) {
+            return;
+        }
+
+        try {
+            $logPath = $this->debugLogPath ?? storage_path('logs/notifyfree-handler.log');
+
+            // Ensure directory exists
+            $dir = dirname($logPath);
+            if (! is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+
+            $fp = fopen($logPath, 'a');
+            if ($fp === false) {
+                return;
+            }
+
+            // Format debug log entry
+            $timestamp = date('Y-m-d H:i:s');
+            $level = $record->level->getName();
+            $message = $record->message;
+            $bufferSize = count($this->buffer);
+
+            fprintf(
+                $fp,
+                "[%s] [%s] Buffer: %d | Message: %s | Context: %s\n",
+                $timestamp,
+                $level,
+                $bufferSize,
+                $message,
+                json_encode($record->context, JSON_UNESCAPED_UNICODE)
+            );
+
+            fclose($fp);
+        } catch (\Exception $e) {
+            // Silently fail to avoid breaking the main logging flow
+        }
     }
 
     /**
@@ -221,6 +278,8 @@ class NotifyFreeHandler extends AbstractProcessingHandler
             $this->buffer = [];
             $this->lastFlushTime = microtime(true);
         }
+
+
     }
 
     /**
